@@ -10,8 +10,8 @@ from tensorflow.keras.layers import Add
 from tensorflow.keras.layers import UpSampling2D
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Concatenate
 from tensorflow.keras import backend
-from tensorflow.python.ops.check_ops import assert_equal
 
 FILTERS = [256, 256, 128, 128, 64, 64, 32]
 
@@ -130,12 +130,16 @@ class PGAN(Model):
     def __init__(
         self,
         latent_dim,
+        character_class=0,
+        batch_size=16,
         d_steps=1,
         gp_weight=10.0,
         drift_weight=0.001,
     ):
         super(PGAN, self).__init__()
         self.latent_dim = latent_dim
+        self.character_class = character_class
+        self.batch_size = batch_size
         self.d_steps = d_steps
         self.gp_weight = gp_weight
         self.drift_weight = drift_weight
@@ -145,15 +149,37 @@ class PGAN(Model):
         self.generator = self.init_generator()
         self.generator_wt_fade = None
 
+    def set_class(self, c):
+        self.character_class = c
+
+    def set_batch_size(self, b):
+        self.batch_size = b
+
     def call(self, inputs):
         return
 
     def init_discriminator(self):
         img_input = layers.Input(shape = (4,4,1))
         img_input = tf.cast(img_input, tf.float32)
+
+        # One-hot class-label
+        y = [0, 0]
+        y[self.character_class] = 1
+        
+        # Convert one-hot class-labels to feature maps
+        c0 = tf.repeat([y[0]*tf.ones(4)],4,axis=0)
+        c1 = tf.repeat([y[1]*tf.ones(4)],4,axis=0)
+
+        classes = tf.stack([c0, c1],axis=0)
+        classes = tf.reshape(classes, (4,4,2))
+        #classes = tf.repeat([classes], img_input.shape[0], 0)
+        classes = tf.repeat([classes], self.batch_size, 0)
+
+        # Concatenate class feature maps with input image
+        merge = Concatenate(axis=-1)([img_input, classes])
         
         # fromRGB
-        x = WeightScalingConv(img_input, filters=FILTERS[0], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
+        x = WeightScalingConv(merge, filters=FILTERS[0], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
         
         # Add Minibatch end of discriminator
         x = MinibatchStdev()(x)
@@ -179,9 +205,21 @@ class PGAN(Model):
         img_input = layers.Input(shape = input_shape)
         img_input = tf.cast(img_input, tf.float32)
 
+        y = [0, 0]
+        y[self.character_class] = 1
+        
+        c1 = tf.repeat([y[0]*tf.ones(input_shape[1])],input_shape[2],axis=0)
+        c2 = tf.repeat([y[1]*tf.ones(input_shape[1])],input_shape[2],axis=0)
+
+        classes = tf.stack([c1, c2],axis=0)
+        classes = tf.reshape(classes, (input_shape[1],input_shape[2],2))
+        classes = tf.repeat([classes], self.batch_size, 0)
+
+        merge = Concatenate(axis=-1)([img_input, classes])
+
         # 2. Add pooling layer 
         #    Reuse the existing “formRGB” block defined as “x1".
-        x1 = layers.AveragePooling2D()(img_input)
+        x1 = layers.AveragePooling2D()(merge)
         x1 = self.discriminator.layers[1](x1) # Conv2D FromRGB
         x1 = self.discriminator.layers[2](x1) # WeightScalingLayer
         x1 = self.discriminator.layers[3](x1) # Bias
@@ -220,7 +258,7 @@ class PGAN(Model):
 
 
     def init_generator(self):
-        noise = layers.Input(shape=(self.latent_dim,))
+        noise = layers.Input(shape=(self.latent_dim+2,))
         x = PixelNormalization()(noise)
         # Actual size(After doing reshape) is just FILTERS[0], so divide gain by 4
         x = WeightScalingDense(x, filters=4*4*FILTERS[0], gain=np.sqrt(2)/4, activate='LeakyReLU', use_pixelnorm=True)
@@ -327,6 +365,13 @@ class PGAN(Model):
             # Get the latent vector
             random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
 
+            onehot = [0,0]
+            onehot[self.character_class] = 1
+            onehot = tf.convert_to_tensor([onehot], dtype=tf.float32)
+            onehot = tf.repeat(onehot, batch_size, axis=0)
+
+            random_latent_vectors = tf.concat([random_latent_vectors, onehot], axis=-1)
+
             with tf.GradientTape() as tape:
                 # Generate fake images from the latent vector
                 fake_images = self.generator(random_latent_vectors, training=True)
@@ -355,6 +400,14 @@ class PGAN(Model):
         # Train the generator
         # Get the latent vector
         random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
+
+        onehot = [0,0]
+        onehot[self.character_class] = 1
+        onehot = tf.convert_to_tensor([onehot], dtype=tf.float32)
+        onehot = tf.repeat(onehot, batch_size, axis=0)
+
+        random_latent_vectors = tf.concat([random_latent_vectors, onehot], axis=-1)
+        
         with tf.GradientTape() as tape:
             # Generate fake images using the generator
             generated_images = self.generator(random_latent_vectors, training=True)
