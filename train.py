@@ -153,7 +153,7 @@ for i in [0,1]:
   pgan.set_class(i)
   cbk.set_prefix(f"class_{i}")
   # Start training the initial generator and discriminator
-  pgan.fit(train_dataset[i], steps_per_epoch = STEPS_PER_EPOCH, epochs = EPOCHS, callbacks=[cbk])
+  pgan.fit(train_dataset[i], batch_size=BATCH_SIZE[0], steps_per_epoch = STEPS_PER_EPOCH, epochs = EPOCHS, callbacks=[cbk])
 
 #pgan.save_weights(checkpoint_path)
 
@@ -201,7 +201,7 @@ for n_depth in range(1, 7):
     pgan.set_class(i)
     cbk.set_prefix(f"class_{i}")
     # Train fade in generator and discriminator
-    pgan.fit(train_dataset[i], steps_per_epoch = steps_per_epoch, epochs = epochs, callbacks=[cbk])
+    pgan.fit(train_dataset[i], batch_size=BATCH_SIZE[n_depth], steps_per_epoch = steps_per_epoch, epochs = epochs, callbacks=[cbk])
   # Save models
   checkpoint_path = f"ckpts/pgan_{cbk.prefix}.ckpt"
   #pgan.save_weights(checkpoint_path)
@@ -223,7 +223,7 @@ for n_depth in range(1, 7):
     pgan.set_class(i)
     cbk.set_prefix(f"class_{i}")
     # Train stabilized generator and discriminator
-    pgan.fit(train_dataset[i], steps_per_epoch = steps_per_epoch, epochs = epochs, callbacks=[cbk])
+    pgan.fit(train_dataset[i], batch_size=BATCH_SIZE[n_depth], steps_per_epoch = steps_per_epoch, epochs = epochs, callbacks=[cbk])
 
   # Save models
   checkpoint_path = f"ckpts/pgan_{cbk.prefix}.ckpt"
