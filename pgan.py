@@ -13,7 +13,7 @@ from tensorflow.keras.layers import Layer
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras import backend
 
-FILTERS = [256, 256, 128, 128, 64, 64, 32]
+FILTERS = [256, 256, 128, 128, 64, 64, 32, 16, 16]
 
 
 # Normalizes the feature vector for the pixel(axis=-1)
@@ -131,7 +131,6 @@ class PGAN(Model):
         self,
         latent_dim,
         character_class=0,
-        batch_size=16,
         d_steps=1,
         gp_weight=10.0,
         drift_weight=0.001,
@@ -139,7 +138,6 @@ class PGAN(Model):
         super(PGAN, self).__init__()
         self.latent_dim = latent_dim
         self.character_class = character_class
-        self.batch_size = batch_size
         self.d_steps = d_steps
         self.gp_weight = gp_weight
         self.drift_weight = drift_weight
@@ -152,9 +150,6 @@ class PGAN(Model):
     def set_class(self, c):
         self.character_class = c
 
-    def set_batch_size(self, b):
-        self.batch_size = b
-
     def call(self, inputs):
         return
 
@@ -162,24 +157,14 @@ class PGAN(Model):
         img_input = layers.Input(shape = (4,4,1))
         img_input = tf.cast(img_input, tf.float32)
 
-        # One-hot class-label
-        y = [0, 0]
-        y[self.character_class] = 1
-        
-        # Convert one-hot class-labels to feature maps
-        c0 = tf.repeat([y[0]*tf.ones(4)],4,axis=0)
-        c1 = tf.repeat([y[1]*tf.ones(4)],4,axis=0)
+        label_input = layers.Input(shape = (1,))
+        label_embedding = layers.Embedding(2, 4*4*2)(label_input)
+        label_embedding = layers.Reshape((4,4,2))(label_embedding)
 
-        classes = tf.stack([c0, c1],axis=0)
-        classes = tf.reshape(classes, (4,4,2))
-        #classes = tf.repeat([classes], img_input.shape[0], 0)
-        classes = tf.repeat([classes], self.batch_size, 0)
-
-        # Concatenate class feature maps with input image
-        merge = Concatenate(axis=-1)([img_input, classes])
+        concat_input = layers.Concatenate()([img_input, label_embedding])
         
         # fromRGB
-        x = WeightScalingConv(merge, filters=FILTERS[0], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
+        x = WeightScalingConv(concat_input, filters=FILTERS[0], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
         
         # Add Minibatch end of discriminator
         x = MinibatchStdev()(x)
@@ -191,7 +176,7 @@ class PGAN(Model):
         # Gain should be 1, cos it's a last layer 
         x = WeightScalingDense(x, filters=1, gain=1.)
 
-        d_model = Model(img_input, x, name='discriminator')
+        d_model = Model([img_input, label_input], x, name='discriminator')
         d_model.summary()
         return d_model
 
@@ -199,35 +184,33 @@ class PGAN(Model):
     def fade_in_discriminator(self):
         #for layer in self.discriminator.layers:
         #    layer.trainable = False
-        input_shape = list(self.discriminator.input.shape)
+        input_shape = list(self.discriminator.input[0].shape)
         # 1. Double the input resolution. 
         input_shape = (input_shape[1]*2, input_shape[2]*2, input_shape[3])
         img_input = layers.Input(shape = input_shape)
         img_input = tf.cast(img_input, tf.float32)
 
-        y = [0, 0]
-        y[self.character_class] = 1
-        
-        c1 = tf.repeat([y[0]*tf.ones(input_shape[1])],input_shape[2],axis=0)
-        c2 = tf.repeat([y[1]*tf.ones(input_shape[1])],input_shape[2],axis=0)
+        label_input = layers.Input(shape = (1,))
+        label_embedding = layers.Embedding(2, 32)(label_input)
+        label_embedding = layers.Reshape((4,4,2))(label_embedding)
 
-        classes = tf.stack([c1, c2],axis=0)
-        classes = tf.reshape(classes, (input_shape[1],input_shape[2],2))
-        classes = tf.repeat([classes], self.batch_size, 0)
+        label_input = layers.Input(shape = (1,))
+        label_embedding = layers.Embedding(2, input_shape[0]*input_shape[1]*2)(label_input)
+        label_embedding = layers.Reshape((input_shape[0],input_shape[1],2))(label_embedding)
 
-        merge = Concatenate(axis=-1)([img_input, classes])
+        concat_input = layers.Concatenate()([img_input, label_embedding])
 
         # 2. Add pooling layer 
         #    Reuse the existing “formRGB” block defined as “x1".
-        x1 = layers.AveragePooling2D()(merge)
-        x1 = self.discriminator.layers[1](x1) # Conv2D FromRGB
-        x1 = self.discriminator.layers[2](x1) # WeightScalingLayer
-        x1 = self.discriminator.layers[3](x1) # Bias
-        x1 = self.discriminator.layers[4](x1) # LeakyReLU
+        x1 = layers.AveragePooling2D()(concat_input)
+        x1 = self.discriminator.layers[5](x1) # Conv2D FromRGB
+        x1 = self.discriminator.layers[6](x1) # WeightScalingLayer
+        x1 = self.discriminator.layers[7](x1) # Bias
+        x1 = self.discriminator.layers[8](x1) # LeakyReLU
 
         # 3.  Define a "fade in" block (x2) with a new "fromRGB" and two 3x3 convolutions. 
         #     Add an AveragePooling2D layer
-        x2 = WeightScalingConv(img_input, filters=FILTERS[self.n_depth], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
+        x2 = WeightScalingConv(concat_input, filters=FILTERS[self.n_depth], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
 
         x2 = WeightScalingConv(x2, filters=FILTERS[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
         x2 = WeightScalingConv(x2, filters=FILTERS[self.n_depth-1], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
@@ -238,14 +221,14 @@ class PGAN(Model):
         x = WeightedSum()([x1, x2])
 
         # Define stabilized(c. state) discriminator 
-        for i in range(5, len(self.discriminator.layers)):
+        for i in range(5+4, len(self.discriminator.layers)):
             x2 = self.discriminator.layers[i](x2)
-        self.discriminator_stabilize = Model(img_input, x2, name='discriminator')
+        self.discriminator_stabilize = Model([img_input, label_input], x2, name='discriminator')
 
         # 5. Add existing discriminator layers. 
-        for i in range(5, len(self.discriminator.layers)):
+        for i in range(5+4, len(self.discriminator.layers)):
             x = self.discriminator.layers[i](x)
-        self.discriminator = Model(img_input, x, name='discriminator')
+        self.discriminator = Model([img_input, label_input], x, name='discriminator')
 
         self.discriminator.summary()
 
@@ -258,7 +241,7 @@ class PGAN(Model):
 
 
     def init_generator(self):
-        noise = layers.Input(shape=(self.latent_dim+2,))
+        noise = layers.Input(shape=(self.latent_dim))#+2,))
         x = PixelNormalization()(noise)
         # Actual size(After doing reshape) is just FILTERS[0], so divide gain by 4
         x = WeightScalingDense(x, filters=4*4*FILTERS[0], gain=np.sqrt(2)/4, activate='LeakyReLU', use_pixelnorm=True)
@@ -319,7 +302,7 @@ class PGAN(Model):
         self.d_optimizer = d_optimizer
         self.g_optimizer = g_optimizer
 
-    def gradient_penalty(self, batch_size, real_images, fake_images):
+    def gradient_penalty(self, batch_size, real_images, fake_images, labels):
         """ Calculates the gradient penalty.
 
         This loss is calculated on an interpolated image
@@ -333,7 +316,7 @@ class PGAN(Model):
         with tf.GradientTape() as tape:
             tape.watch(interpolated)
             # 1. Get the discriminator output for this interpolated image.
-            pred = self.discriminator(interpolated, training=True)
+            pred = self.discriminator([interpolated, labels], training=True)
 
         # 2. Calculate the gradients w.r.t to this interpolated image.
         grads = tape.gradient(pred, [interpolated])[0]
@@ -342,9 +325,12 @@ class PGAN(Model):
         gp = tf.reduce_mean((norm - 1.0) ** 2)
         return gp
 
-    def train_step(self, real_images):
-        if isinstance(real_images, tuple):
-            real_images = real_images[0]
+    def train_step(self, data):
+
+        #labels = []
+        #if isinstance(real_images, tuple):
+        real_images = data[0]
+        labels = data[1]
 
         # Get the batch size
         batch_size = tf.shape(real_images)[0]
@@ -365,26 +351,26 @@ class PGAN(Model):
             # Get the latent vector
             random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
 
-            onehot = [0,0]
-            onehot[self.character_class] = 1
-            onehot = tf.convert_to_tensor([onehot], dtype=tf.float32)
-            onehot = tf.repeat(onehot, batch_size, axis=0)
+            #onehot = [0,0]
+            #onehot[self.character_class] = 1
+            #onehot = tf.convert_to_tensor([onehot], dtype=tf.float32)
+            #onehot = tf.repeat(onehot, batch_size, axis=0)
 
-            random_latent_vectors = tf.concat([random_latent_vectors, onehot], axis=-1)
+            #random_latent_vectors = tf.concat([random_latent_vectors, onehot], axis=-1)
 
             with tf.GradientTape() as tape:
                 # Generate fake images from the latent vector
                 fake_images = self.generator(random_latent_vectors, training=True)
                 # Get the logits for the fake images
-                fake_logits = self.discriminator(fake_images, training=True)
+                fake_logits = self.discriminator([fake_images, labels], training=True)
                 # Get the logits for the real images
-                real_logits = self.discriminator(real_images, training=True)
+                real_logits = self.discriminator([real_images, labels], training=True)
 
                 # Calculate the discriminator loss using the fake and real image logits
                 d_cost = tf.reduce_mean(fake_logits) - tf.reduce_mean(real_logits)
 
                 # Calculate the gradient penalty
-                gp = self.gradient_penalty(batch_size, real_images, fake_images)
+                gp = self.gradient_penalty(batch_size, real_images, fake_images, labels)
 
                 # Calculate the drift for regularization
                 drift = tf.reduce_mean(tf.square(real_logits))
@@ -401,18 +387,18 @@ class PGAN(Model):
         # Get the latent vector
         random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
 
-        onehot = [0,0]
-        onehot[self.character_class] = 1
-        onehot = tf.convert_to_tensor([onehot], dtype=tf.float32)
-        onehot = tf.repeat(onehot, batch_size, axis=0)
+        #onehot = [0,0]
+        #onehot[self.character_class] = 1
+        #onehot = tf.convert_to_tensor([onehot], dtype=tf.float32)
+        #onehot = tf.repeat(onehot, batch_size, axis=0)
 
-        random_latent_vectors = tf.concat([random_latent_vectors, onehot], axis=-1)
+        #random_latent_vectors = tf.concat([random_latent_vectors, onehot], axis=-1)
         
         with tf.GradientTape() as tape:
             # Generate fake images using the generator
             generated_images = self.generator(random_latent_vectors, training=True)
             # Get the discriminator logits for fake images
-            gen_img_logits = self.discriminator(generated_images, training=True)
+            gen_img_logits = self.discriminator([generated_images, labels], training=True)
             # Calculate the generator loss
             g_loss = -tf.reduce_mean(gen_img_logits)
         # Get the gradients w.r.t the generator loss

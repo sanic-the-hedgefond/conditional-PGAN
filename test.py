@@ -21,6 +21,7 @@ def saveSample(generator, random_latent_vectors, prefix):
   for i in range(n_grid):
     for j in range(n_grid):
       axes[i][j].set_axis_off()
+      print(sample_grid[i][j])
       samples_grid_i_j = Image.fromarray((sample_grid[i][j] * 255).astype(np.uint8))
       samples_grid_i_j = samples_grid_i_j.resize((256,256))
       axes[i][j].imshow(np.array(samples_grid_i_j))
@@ -32,7 +33,7 @@ def saveSample(generator, random_latent_vectors, prefix):
 
 
 
-NOISE_DIM = 512
+NOISE_DIM = 50
 NUM_SAMPLE = 4
 random_latent_vectors = tf.random.normal(shape=[NUM_SAMPLE, NOISE_DIM])#, seed=9434)
 
@@ -43,27 +44,27 @@ pgan = PGAN(
 )
 
 # Load weight and generate samples per each level. 
-prefix='0_init'
-pgan.load_weights(f"ckpts/pgan_{prefix}.ckpt")
-saveSample(pgan.generator, random_latent_vectors, prefix)
+#prefix='0_init'
+#pgan.load_weights(f"ckpts/pgan_{prefix}.ckpt")
+#saveSample(pgan.generator, random_latent_vectors, prefix)
 
 #inference
-for n_depth in range(1,7):
-  pgan.n_depth = n_depth
-  prefix=f'{n_depth}_fade_in'
+for n_depth in range(1,6):
+  #pgan.n_depth = n_depth
+  #prefix=f'{n_depth}_fade_in'
   pgan.fade_in_generator()
   pgan.fade_in_discriminator()
 
-  pgan.load_weights(f"ckpts/pgan_{prefix}.ckpt")
-  saveSample(pgan.generator, random_latent_vectors, prefix)
+  #pgan.load_weights(f"ckpts/pgan_{prefix}.ckpt")
+  #saveSample(pgan.generator, random_latent_vectors, prefix)
 
-  prefix=f'{n_depth}_stabilize'
+  #prefix=f'{n_depth}_stabilize'
   pgan.stabilize_generator()
   pgan.stabilize_discriminator()
 
-  pgan.load_weights(f"ckpts/pgan_{prefix}.ckpt")
-  saveSample(pgan.generator, random_latent_vectors, prefix)
-pgan.load_weights(f"ckpts/pgan_{prefix}.ckpt")
+  #pgan.load_weights(f"ckpts/pgan_{prefix}.ckpt")
+  #saveSample(pgan.generator, random_latent_vectors, prefix)
+pgan.load_weights(f"ckpts/pgan_class_0_6_stabilize.ckpt")
 
 
 # Generate interpolated samples. 
