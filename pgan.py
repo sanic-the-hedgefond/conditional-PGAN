@@ -130,14 +130,14 @@ class PGAN(Model):
     def __init__(
         self,
         latent_dim,
-        character_class=0,
+        num_classes,
         d_steps=1,
         gp_weight=10.0,
         drift_weight=0.001,
     ):
         super(PGAN, self).__init__()
         self.latent_dim = latent_dim
-        self.character_class = character_class
+        self.num_classes = num_classes
         self.d_steps = d_steps
         self.gp_weight = gp_weight
         self.drift_weight = drift_weight
@@ -157,8 +157,9 @@ class PGAN(Model):
         img_input = layers.Input(shape = (4,4,1))
         img_input = tf.cast(img_input, tf.float32)
 
+        # Convert classindex to 4x4x2 Layer and concat with image input
         label_input = layers.Input(shape = (1,))
-        label_embedding = layers.Embedding(2, 4*4*2)(label_input)
+        label_embedding = layers.Embedding(self.num_classes, 4*4*2)(label_input)
         label_embedding = layers.Reshape((4,4,2))(label_embedding)
 
         concat_input = layers.Concatenate()([img_input, label_embedding])
@@ -191,7 +192,7 @@ class PGAN(Model):
         img_input = tf.cast(img_input, tf.float32)
 
         label_input = layers.Input(shape = (1,))
-        label_embedding = layers.Embedding(2, 32)(label_input)
+        label_embedding = layers.Embedding(self.num_classes, 32)(label_input)
         label_embedding = layers.Reshape((4,4,2))(label_embedding)
 
         label_input = layers.Input(shape = (1,))
@@ -241,8 +242,15 @@ class PGAN(Model):
 
 
     def init_generator(self):
-        noise = layers.Input(shape=(self.latent_dim))#+2,))
-        x = PixelNormalization()(noise)
+        noise = layers.Input(shape=(self.latent_dim))
+
+        label_input = layers.Input(shape=(1,))
+        label = layers.Embedding(self.num_classes, 20)(label_input)
+        label = layers.Reshape((20,))(label)
+
+        concat_input = layers.Concatenate()([noise, label])
+
+        x = PixelNormalization()(concat_input)
         # Actual size(After doing reshape) is just FILTERS[0], so divide gain by 4
         x = WeightScalingDense(x, filters=4*4*FILTERS[0], gain=np.sqrt(2)/4, activate='LeakyReLU', use_pixelnorm=True)
         x = layers.Reshape((4, 4, FILTERS[0]))(x)
@@ -254,7 +262,7 @@ class PGAN(Model):
         # Gain should be 1, cos it's a last layer 
         x = WeightScalingConv(x, filters=1, kernel_size=(1,1), gain=1., activate='tanh', use_pixelnorm=False)
 
-        g_model = Model(noise, x, name='generator')
+        g_model = Model([noise, label_input], x, name='generator')
         g_model.summary()
         return g_model
 
@@ -360,7 +368,7 @@ class PGAN(Model):
 
             with tf.GradientTape() as tape:
                 # Generate fake images from the latent vector
-                fake_images = self.generator(random_latent_vectors, training=True)
+                fake_images = self.generator([random_latent_vectors, labels], training=True)
                 # Get the logits for the fake images
                 fake_logits = self.discriminator([fake_images, labels], training=True)
                 # Get the logits for the real images
@@ -396,7 +404,7 @@ class PGAN(Model):
         
         with tf.GradientTape() as tape:
             # Generate fake images using the generator
-            generated_images = self.generator(random_latent_vectors, training=True)
+            generated_images = self.generator([random_latent_vectors, labels], training=True)
             # Get the discriminator logits for fake images
             gen_img_logits = self.discriminator([generated_images, labels], training=True)
             # Calculate the generator loss

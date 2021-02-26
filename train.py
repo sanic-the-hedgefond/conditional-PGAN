@@ -50,7 +50,13 @@ class GANMonitor(keras.callbacks.Callback):
 
   def on_epoch_end(self, epoch, logs=None):
     self.random_latent_vectors = tf.random.normal(shape=[self.num_img, self.latent_dim])
-    samples = self.model.generator(self.random_latent_vectors)
+
+    labels = [0] * self.num_img
+    for i in range(self.num_img):
+      labels[i] = i % NUM_CHARS
+    labels = np.asarray(labels)
+
+    samples = self.model.generator([self.random_latent_vectors, labels])
     samples = (samples * 0.5) + 0.5
     n_grid = int(sqrt(self.num_img))
 
@@ -62,7 +68,7 @@ class GANMonitor(keras.callbacks.Callback):
         axes[i][j].set_axis_off()
         samples_grid_i_j = Image.fromarray((sample_grid[i][j] * 255).astype(np.uint8).squeeze(), mode="L")
         samples_grid_i_j = samples_grid_i_j.resize((128,128), resample=Image.NEAREST)
-        axes[i][j].imshow(np.array(samples_grid_i_j))
+        axes[i][j].imshow(np.array(samples_grid_i_j), cmap='gray')
     title = f'images/plot_{self.prefix}_{epoch:05d}.png'
     pyplot.savefig(title, bbox_inches='tight')
     print(f'\n saved {title}')
@@ -81,22 +87,15 @@ class GANMonitor(keras.callbacks.Callback):
         backend.set_value(layer.alpha, alpha)
 
 
-# DEFINE FILEPATH AND PARAMETERS
-# can use celeb A mask dataset on https://github.com/switchablenorms/CelebAMask-HQ 
-#DATA_ROOT = './CelebAMask-HQ'
-DATA_ROOT = 'C:/Users/Schnee/Desktop/PGgan_training_data'
-
-DATA_ROOT_A = 'C:/Users/Schnee/Desktop/PGgan_training_data/A'
-DATA_ROOT_O = 'C:/Users/Schnee/Desktop/PGgan_training_data/O'
-
+# DEFINE PARAMETERS
 NOISE_DIM = 50
-# Set the number of batches, epochs and steps for trainining.
-# Look 800k images(16x50x1000) per each lavel
-BATCH_SIZE = [32, 16, 16, 16, 8, 4, 4, 2, 2]
-EPOCHS = 10
-STEPS_PER_EPOCH = 15
+NUM_CHARS = 2
+dataset1 = dataset.get_labeled_data(IM_SIZE=4, num_chars=NUM_CHARS)
 
-dataset1 = dataset.get_labeled_data()
+# Set the number of batches, epochs and steps for trainining.
+BATCH_SIZE = [32, 16, 16, 16, 8, 4, 4, 2, 2]
+EPOCHS = 3
+STEPS_PER_EPOCH = len(dataset1[0][0]) // BATCH_SIZE[0]
 
 #print("Train IMG shape: ", next(iter(train_dataset))[0].shape)
 
@@ -112,7 +111,8 @@ cbk.set_steps(steps_per_epoch=STEPS_PER_EPOCH, epochs=EPOCHS)
 
 # Instantiate the PGAN(PG-GAN) model.
 pgan = PGAN(
-    latent_dim = NOISE_DIM, 
+    latent_dim = NOISE_DIM,
+    num_classes = NUM_CHARS,
     d_steps = 3
 )
 
@@ -128,10 +128,7 @@ pgan.compile(
 tf.keras.utils.plot_model(pgan.generator, to_file=f'images/generator_{pgan.n_depth}.png', show_shapes=True)
 tf.keras.utils.plot_model(pgan.discriminator, to_file=f'images/discriminator_{pgan.n_depth}.png', show_shapes=True)
 
-print(dataset1[0][0].shape)
-print(dataset1[1][0].shape)
-
-for i in [0,1]:
+for i in range(NUM_CHARS):
   pgan.set_class(i)
   cbk.set_prefix(f"class_{i}")
 
@@ -146,12 +143,12 @@ for n_depth in range(1, len(BATCH_SIZE)):
   pgan.n_depth = n_depth
 
   # Set parameters like epochs, steps, batch size and image size
-  steps_per_epoch = STEPS_PER_EPOCH
+  steps_per_epoch = len(dataset1[0][0]) // BATCH_SIZE[i]
   epochs = int(EPOCHS*(BATCH_SIZE[0]/BATCH_SIZE[n_depth]))
   
   dataset1 = dataset.get_labeled_data(IM_SIZE=2**(n_depth+2))
   
-  cbk.set_steps(steps_per_epoch=steps_per_epoch, epochs=epochs)
+  cbk.set_steps(steps_per_epoch=steps_per_epoch, epochs=EPOCHS)
 
   # Put fade in generator and discriminator
   pgan.fade_in_generator()
@@ -165,7 +162,7 @@ for n_depth in range(1, len(BATCH_SIZE)):
       d_optimizer=discriminator_optimizer,
       g_optimizer=generator_optimizer,
   )
-  for i in [0,1]:
+  for i in range(NUM_CHARS):
     pgan.set_class(i)
     cbk.set_prefix(f"class_{i}_{n_depth}_fade_in")
 
@@ -188,7 +185,7 @@ for n_depth in range(1, len(BATCH_SIZE)):
       g_optimizer=generator_optimizer,
   )
 
-  for i in [0,1]:
+  for i in range(NUM_CHARS):
     pgan.set_class(i)
     cbk.set_prefix(f"class_{i}_{n_depth}_stabilize")
     # Train stabilized generator and discriminator

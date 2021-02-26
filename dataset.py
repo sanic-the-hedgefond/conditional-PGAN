@@ -5,41 +5,28 @@ import os
 import numpy as np
 import re
 
-def get_labeled_data(IM_SIZE=4, FONT_DIR='C:/Users/Schnee/Google Drive/Informatik Studium/Semester10/Master/font_GAN/fonts/', OUTPUT=False, num_chars=2):
+def get_labeled_data(IM_SIZE=4, num_chars=2, step=1, FONT_DIR='C:/Users/Schnee/Google Drive/Informatik Studium/Semester10/Master/font_GAN/fonts/', OUTPUT=False, OUTPUT_DIR='C:/Users/Schnee/Desktop/Test/'):
 
     fonts = glob(FONT_DIR + '*.*', recursive=True)
     chars = []
 
-    for char in ascii_uppercase:
+    for char in [ascii_uppercase, ascii_lowercase]:
         chars.append(char)
 
-    if num_chars == 52:
-        for char in ascii_lowercase:
-            chars.append(char)
+    chars = chars[:num_chars]
 
-    elif num_chars == 1:
-        chars = ['A']
-
-    elif num_chars == 2:
-        chars = ['A', 'O']
-
-    OUTPUT_DIR = 'fonts/dataset/' + str(IM_SIZE) + '/'
+    OUTPUT_DIR = OUTPUT_DIR + str(IM_SIZE) + '/'
     if OUTPUT and not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
     
     print('Found {} fonts each with {} characters selected.'.format(len(fonts), len(chars)))
     print('Characters: {}'.format(chars))
     
-    images = [[]] * len(chars)
-    labels = [[]] * len(chars)
+    images = [[]] * num_chars
+    labels = [[]] * num_chars
 
-    #dataset = []
-
-    for font_file in fonts:
+    for font_file in fonts[::step]:
         font = ImageFont.truetype(font_file, int(IM_SIZE*(3.0/4.0)))
-
-        #font_images = [[]] * len(chars)
-        #font_labels = [[]] * len(chars)
 
         for i, char in enumerate(chars):
             im = Image.new('L', (IM_SIZE, IM_SIZE), 0)
@@ -93,24 +80,19 @@ def get_labeled_data(IM_SIZE=4, FONT_DIR='C:/Users/Schnee/Google Drive/Informati
                 label[-1] = 0
             '''
 
-            #font_images.append(im)
-            #font_labels.append(label)
-
             images[i].append(im)
             labels[i].append(label)
 
-        #dataset.append([np.asarray(font_images), np.asarray(font_labels)])
-
-        #images.append(font_images)
-        #labels.append(font_labels)
-
-        #images.append(np.asarray(font_images))
-        #labels.append(np.asarray(font_labels))
-
-    #return np.asarray(images), np.asarray(labels)
-    #return dataset
     return [np.asarray(images), np.asarray(labels)]
 
+'''
 test = get_labeled_data()
 print(test[0].shape)
 print(test[1].shape)
+
+print(test[0][0].shape)
+print(test[1][0].shape)
+
+print(test[0][1].shape)
+print(test[1][1].shape)
+'''
