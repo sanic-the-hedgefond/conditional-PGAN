@@ -8,9 +8,10 @@ import re
 def get_labeled_data(IM_SIZE=4, num_chars=2, step=1, FONT_DIR='C:/Users/Schnee/Google Drive/Informatik Studium/Semester10/Master/font_GAN/fonts/', OUTPUT=False, OUTPUT_DIR='C:/Users/Schnee/Desktop/Test/'):
 
     fonts = glob(FONT_DIR + '*.*', recursive=True)
+    fonts = fonts[::step]
     chars = []
 
-    for char in [ascii_uppercase, ascii_lowercase]:
+    for char in (ascii_uppercase + ascii_lowercase):
         chars.append(char)
 
     chars = chars[:num_chars]
@@ -25,7 +26,7 @@ def get_labeled_data(IM_SIZE=4, num_chars=2, step=1, FONT_DIR='C:/Users/Schnee/G
     images = [[]] * num_chars
     labels = [[]] * num_chars
 
-    for font_file in fonts[::step]:
+    for font_file in fonts:
         font = ImageFont.truetype(font_file, int(IM_SIZE*(3.0/4.0)))
 
         for i, char in enumerate(chars):

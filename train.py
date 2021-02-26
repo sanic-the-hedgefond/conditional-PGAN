@@ -89,12 +89,12 @@ class GANMonitor(keras.callbacks.Callback):
 
 # DEFINE PARAMETERS
 NOISE_DIM = 50
-NUM_CHARS = 2
-dataset1 = dataset.get_labeled_data(IM_SIZE=4, num_chars=NUM_CHARS)
+NUM_CHARS = 6
+dataset1 = dataset.get_labeled_data(IM_SIZE=4, num_chars=NUM_CHARS, step=6)
 
 # Set the number of batches, epochs and steps for trainining.
 BATCH_SIZE = [32, 16, 16, 16, 8, 4, 4, 2, 2]
-EPOCHS = 3
+EPOCHS = 2
 STEPS_PER_EPOCH = len(dataset1[0][0]) // BATCH_SIZE[0]
 
 #print("Train IMG shape: ", next(iter(train_dataset))[0].shape)
@@ -113,7 +113,7 @@ cbk.set_steps(steps_per_epoch=STEPS_PER_EPOCH, epochs=EPOCHS)
 pgan = PGAN(
     latent_dim = NOISE_DIM,
     num_classes = NUM_CHARS,
-    d_steps = 3
+    d_steps = 2
 )
 
 checkpoint_path = f"ckpts/pgan_{cbk.prefix}.ckpt"
@@ -146,7 +146,7 @@ for n_depth in range(1, len(BATCH_SIZE)):
   steps_per_epoch = len(dataset1[0][0]) // BATCH_SIZE[i]
   epochs = int(EPOCHS*(BATCH_SIZE[0]/BATCH_SIZE[n_depth]))
   
-  dataset1 = dataset.get_labeled_data(IM_SIZE=2**(n_depth+2))
+  dataset1 = dataset.get_labeled_data(IM_SIZE=2**(n_depth+2), num_chars=6, step=4)
   
   cbk.set_steps(steps_per_epoch=steps_per_epoch, epochs=EPOCHS)
 
@@ -167,7 +167,7 @@ for n_depth in range(1, len(BATCH_SIZE)):
     cbk.set_prefix(f"class_{i}_{n_depth}_fade_in")
 
     # Train fade in generator and discriminator
-    pgan.fit(x=dataset1[0][i], y=dataset1[1][i], batch_size=BATCH_SIZE[n_depth], epochs = epochs, callbacks=[cbk])
+    pgan.fit(x=dataset1[0][i], y=dataset1[1][i], batch_size=BATCH_SIZE[n_depth], epochs = EPOCHS, callbacks=[cbk])
   # Save models
   checkpoint_path = f"ckpts/pgan_{cbk.prefix}.ckpt"
   #pgan.save_weights(checkpoint_path)
@@ -189,7 +189,7 @@ for n_depth in range(1, len(BATCH_SIZE)):
     pgan.set_class(i)
     cbk.set_prefix(f"class_{i}_{n_depth}_stabilize")
     # Train stabilized generator and discriminator
-    pgan.fit(x=dataset1[0][i], y=dataset1[1][i], batch_size=BATCH_SIZE[n_depth], epochs = epochs, callbacks=[cbk])
+    pgan.fit(x=dataset1[0][i], y=dataset1[1][i], batch_size=BATCH_SIZE[n_depth], epochs = EPOCHS, callbacks=[cbk])
 
   # Save models
   checkpoint_path = f"ckpts/pgan_{cbk.prefix}.ckpt"
