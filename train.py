@@ -21,15 +21,6 @@ class GANMonitor(keras.callbacks.Callback):
 
     random_latent_vectors = tf.random.normal(shape=[num_img, self.latent_dim])
 
-    #class0 = tf.convert_to_tensor([[1,0]], dtype=tf.float32)
-    #class1 = tf.convert_to_tensor([[0,1]], dtype=tf.float32)
-    #class0 = tf.repeat(class0, (num_img//2), axis=0)
-    #class1 = tf.repeat(class1, (num_img//2), axis=0)
-
-    #onehot = tf.concat([class0, class1], axis=0)
-
-    #random_latent_vectors = tf.concat([random_latent_vectors, onehot], axis=-1)
-
     self.random_latent_vectors = random_latent_vectors
     self.steps_per_epoch = 0
     self.epochs = 0
@@ -77,11 +68,7 @@ class GANMonitor(keras.callbacks.Callback):
 
   def on_batch_begin(self, batch, logs=None):
     # Update alpha in WeightedSum layers
-    #alpha = ((self.n_epoch * self.steps_per_epoch) + batch) / float(self.steps - 1)
-    alpha = ((batch*2) + self.n_epoch * self.steps_per_epoch) / (self.steps)
-    #print(alpha)
-    #print(f'\n {self.steps}, {self.n_epoch}, {self.steps_per_epoch}, {alpha}')
-    #self.model.alpha = 666.66
+    alpha = ((batch*2) + self.n_epoch * self.steps_per_epoch) / (self.steps + 1)
     backend.set_value(self.model.alpha, alpha)
     for layer in self.model.generator.layers:
       if isinstance(layer, WeightedSum):
@@ -94,12 +81,12 @@ class GANMonitor(keras.callbacks.Callback):
 # DEFINE PARAMETERS
 NOISE_DIM = 50
 NUM_CHARS = 2
-STEP = 2 # reduce size of dataset by 1/STEP
-training_set = dataset.get_labeled_data(IM_SIZE=4, num_chars=NUM_CHARS, step=STEP)
+STEP = 40 # reduce size of dataset by 1/STEP
+training_set = dataset.get_labeled_data(IM_SIZE=4, num_chars=NUM_CHARS, step=STEP, FONT_DIR="../font_cgan/fonts/")
 
 # Set the number of batches, epochs and steps for trainining.
 BATCH_SIZE = [32, 16, 16, 16, 8, 4, 4, 2, 2]
-EPOCHS = 4
+EPOCHS = 1
 DISCRIMINATOR_STEPS = 2
 STEPS_PER_EPOCH = len(training_set[0][0]) / BATCH_SIZE[0]
 
@@ -146,10 +133,8 @@ for n_depth in range(1, len(BATCH_SIZE)):
   pgan.n_depth = n_depth
 
   # Set parameters like epochs, steps, batch size and image size
-  STEPS_PER_EPOCH = len(training_set[0][0]) / BATCH_SIZE[i]
-  #epochs = int(EPOCHS*(BATCH_SIZE[0]/BATCH_SIZE[n_depth]))
-  
-  training_set = dataset.get_labeled_data(IM_SIZE=2**(n_depth+2), num_chars=NUM_CHARS, step=STEP)
+  training_set = dataset.get_labeled_data(IM_SIZE=2**(n_depth+2), num_chars=NUM_CHARS, step=STEP, FONT_DIR="../font_cgan/fonts/")
+  STEPS_PER_EPOCH = len(training_set[0][0]) / BATCH_SIZE[n_depth]
   
   cbk.set_steps(steps_per_epoch=STEPS_PER_EPOCH, epochs=EPOCHS)
 

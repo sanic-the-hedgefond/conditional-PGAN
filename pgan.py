@@ -193,7 +193,13 @@ class PGAN(Model):
         label_embedding = layers.Embedding(self.num_classes, input_shape[0]*input_shape[1]*2)(label_input)
         label_embedding = layers.Reshape((input_shape[0],input_shape[1],2))(label_embedding)
 
-        concat_input = layers.Concatenate()([img_input, label_embedding])
+        label_embedding_old = self.discriminator.layers[1](label_input) # Embedding
+        label_embedding_old = self.discriminator.layers[2](label_embedding_old) # Reshape
+        label_embedding_old = UpSampling2D()(label_embedding_old)
+
+        weighted_embedding = WeightedSum()([label_embedding, label_embedding_old])
+
+        concat_input = layers.Concatenate()([img_input, weighted_embedding])
 
         # 2. Add pooling layer 
         #    Reuse the existing “formRGB” block defined as “x1".
@@ -328,14 +334,14 @@ class PGAN(Model):
         return gp
 
     def train_step(self, data):
+        real_images = data[0][0]
+        labels = data[1][0]
 
-        #labels = []
-        #if isinstance(real_images, tuple):
-        real_images = data[0]
-        labels = data[1]
+        print(data[0].shape)
 
         # Get the batch size
         batch_size = tf.shape(real_images)[0]
+
         # For each batch, we are going to perform the
         # following steps as laid out in the original paper:
         # 1. Train the generator and get the generator loss
@@ -349,7 +355,7 @@ class PGAN(Model):
         # the discriminator for `x` more steps (typically 5) as compared to
         # one step of the generator. Here we will train it for 3 extra steps
         # as compared to 5 to reduce the training time.
-        for i in range(self.d_steps):
+        for _ in range(self.d_steps):
             # Get the latent vector
             random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
 

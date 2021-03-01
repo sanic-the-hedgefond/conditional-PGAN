@@ -22,11 +22,11 @@ def get_labeled_data(IM_SIZE=4, num_chars=2, step=1, FONT_DIR='C:/Users/Schnee/G
     
     print('Found {} fonts each with {} characters selected.'.format(len(fonts), len(chars)))
     print('Characters: {}'.format(chars))
-    
-    images = [[]] * num_chars
-    labels = [[]] * num_chars
 
-    for font_file in fonts:
+    images = np.zeros((num_chars, len(fonts), IM_SIZE, IM_SIZE, 1))
+    labels = np.zeros((num_chars, len(fonts)))
+
+    for j, font_file in enumerate(fonts):
         font = ImageFont.truetype(font_file, int(IM_SIZE*(3.0/4.0)))
 
         for i, char in enumerate(chars):
@@ -44,7 +44,6 @@ def get_labeled_data(IM_SIZE=4, num_chars=2, step=1, FONT_DIR='C:/Users/Schnee/G
             # shift range from [0,255] to [-1,1]
             im = np.array(im)/255.0*2.0 - 1.0
             im = np.expand_dims(im, axis=-1)
-            #im = np.array(im)
 
             label = i
 
@@ -81,19 +80,27 @@ def get_labeled_data(IM_SIZE=4, num_chars=2, step=1, FONT_DIR='C:/Users/Schnee/G
                 label[-1] = 0
             '''
 
-            images[i].append(im)
-            labels[i].append(label)
+            images[i][j] = np.asarray(im)
+            labels[i][j] = label
 
-    return [np.asarray(images), np.asarray(labels)]
+    #images = np.asarray(images)
+    #labels = np.asarray(labels)
+
+    #images = np.reshape(images, (num_chars, len(fonts), IM_SIZE, IM_SIZE, 1))
+    #labels = np.reshape(labels, (num_chars, len(fonts)))
+
+    return [images, labels]
 
 '''
-test = get_labeled_data()
+test = get_labeled_data(num_chars=52, step=20)
 print(test[0].shape)
 print(test[1].shape)
 
 print(test[0][0].shape)
 print(test[1][0].shape)
 
-print(test[0][1].shape)
-print(test[1][1].shape)
+print(test[0][51].shape)
+print(test[1][51].shape)
+
+print(test[1])
 '''
