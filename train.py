@@ -77,8 +77,12 @@ class GANMonitor(keras.callbacks.Callback):
 
   def on_batch_begin(self, batch, logs=None):
     # Update alpha in WeightedSum layers
-    alpha = ((self.n_epoch * self.steps_per_epoch) + batch) / float(self.steps - 1)
+    #alpha = ((self.n_epoch * self.steps_per_epoch) + batch) / float(self.steps - 1)
+    alpha = ((batch*2) + self.n_epoch * self.steps_per_epoch) / (self.steps)
+    #print(alpha)
     #print(f'\n {self.steps}, {self.n_epoch}, {self.steps_per_epoch}, {alpha}')
+    #self.model.alpha = 666.66
+    backend.set_value(self.model.alpha, alpha)
     for layer in self.model.generator.layers:
       if isinstance(layer, WeightedSum):
         backend.set_value(layer.alpha, alpha)
@@ -89,13 +93,15 @@ class GANMonitor(keras.callbacks.Callback):
 
 # DEFINE PARAMETERS
 NOISE_DIM = 50
-NUM_CHARS = 6
-dataset1 = dataset.get_labeled_data(IM_SIZE=4, num_chars=NUM_CHARS, step=6)
+NUM_CHARS = 2
+STEP = 2 # reduce size of dataset by 1/STEP
+training_set = dataset.get_labeled_data(IM_SIZE=4, num_chars=NUM_CHARS, step=STEP)
 
 # Set the number of batches, epochs and steps for trainining.
 BATCH_SIZE = [32, 16, 16, 16, 8, 4, 4, 2, 2]
-EPOCHS = 2
-STEPS_PER_EPOCH = len(dataset1[0][0]) // BATCH_SIZE[0]
+EPOCHS = 4
+DISCRIMINATOR_STEPS = 2
+STEPS_PER_EPOCH = len(training_set[0][0]) / BATCH_SIZE[0]
 
 #print("Train IMG shape: ", next(iter(train_dataset))[0].shape)
 
@@ -113,7 +119,7 @@ cbk.set_steps(steps_per_epoch=STEPS_PER_EPOCH, epochs=EPOCHS)
 pgan = PGAN(
     latent_dim = NOISE_DIM,
     num_classes = NUM_CHARS,
-    d_steps = 2
+    d_steps = DISCRIMINATOR_STEPS,
 )
 
 checkpoint_path = f"ckpts/pgan_{cbk.prefix}.ckpt"
@@ -129,13 +135,10 @@ tf.keras.utils.plot_model(pgan.generator, to_file=f'images/generator_{pgan.n_dep
 tf.keras.utils.plot_model(pgan.discriminator, to_file=f'images/discriminator_{pgan.n_depth}.png', show_shapes=True)
 
 for i in range(NUM_CHARS):
-  pgan.set_class(i)
-  cbk.set_prefix(f"class_{i}")
+  cbk.set_prefix(f"init_4x4_class_{i}")
 
   # Start training the initial generator and discriminator
-  pgan.fit(x=dataset1[0][i], y=dataset1[1][i], batch_size=BATCH_SIZE[0], epochs = EPOCHS, callbacks=[cbk])
-
-#pgan.save_weights(checkpoint_path)
+  pgan.fit(x=training_set[0][i], y=training_set[1][i], batch_size=BATCH_SIZE[0], epochs = EPOCHS, callbacks=[cbk])
 
 # Train faded-in / stabilized generators and discriminators
 for n_depth in range(1, len(BATCH_SIZE)):
@@ -143,12 +146,12 @@ for n_depth in range(1, len(BATCH_SIZE)):
   pgan.n_depth = n_depth
 
   # Set parameters like epochs, steps, batch size and image size
-  steps_per_epoch = len(dataset1[0][0]) // BATCH_SIZE[i]
-  epochs = int(EPOCHS*(BATCH_SIZE[0]/BATCH_SIZE[n_depth]))
+  STEPS_PER_EPOCH = len(training_set[0][0]) / BATCH_SIZE[i]
+  #epochs = int(EPOCHS*(BATCH_SIZE[0]/BATCH_SIZE[n_depth]))
   
-  dataset1 = dataset.get_labeled_data(IM_SIZE=2**(n_depth+2), num_chars=6, step=4)
+  training_set = dataset.get_labeled_data(IM_SIZE=2**(n_depth+2), num_chars=NUM_CHARS, step=STEP)
   
-  cbk.set_steps(steps_per_epoch=steps_per_epoch, epochs=EPOCHS)
+  cbk.set_steps(steps_per_epoch=STEPS_PER_EPOCH, epochs=EPOCHS)
 
   # Put fade in generator and discriminator
   pgan.fade_in_generator()
@@ -163,11 +166,10 @@ for n_depth in range(1, len(BATCH_SIZE)):
       g_optimizer=generator_optimizer,
   )
   for i in range(NUM_CHARS):
-    pgan.set_class(i)
-    cbk.set_prefix(f"class_{i}_{n_depth}_fade_in")
+    cbk.set_prefix(f"fade_in_{2**(n_depth+2)}x{2**(n_depth+2)}_class_{i}")
 
     # Train fade in generator and discriminator
-    pgan.fit(x=dataset1[0][i], y=dataset1[1][i], batch_size=BATCH_SIZE[n_depth], epochs = EPOCHS, callbacks=[cbk])
+    pgan.fit(x=training_set[0][i], y=training_set[1][i], batch_size=BATCH_SIZE[n_depth], epochs = EPOCHS, callbacks=[cbk])
   # Save models
   checkpoint_path = f"ckpts/pgan_{cbk.prefix}.ckpt"
   #pgan.save_weights(checkpoint_path)
@@ -186,12 +188,11 @@ for n_depth in range(1, len(BATCH_SIZE)):
   )
 
   for i in range(NUM_CHARS):
-    pgan.set_class(i)
-    cbk.set_prefix(f"class_{i}_{n_depth}_stabilize")
+    cbk.set_prefix(f"stabilize_{2**(n_depth+2)}x{2**(n_depth+2)}_class_{i}")
     # Train stabilized generator and discriminator
-    pgan.fit(x=dataset1[0][i], y=dataset1[1][i], batch_size=BATCH_SIZE[n_depth], epochs = EPOCHS, callbacks=[cbk])
+    pgan.fit(x=training_set[0][i], y=training_set[1][i], batch_size=BATCH_SIZE[n_depth], epochs = EPOCHS, callbacks=[cbk])
 
   # Save models
-  checkpoint_path = f"ckpts/pgan_{cbk.prefix}.ckpt"
+  checkpoint_path = f"ckpts/pgan_{2**(n_depth+2)}x{2**(n_depth+2)}.ckpt"
   pgan.save_weights(checkpoint_path)
 

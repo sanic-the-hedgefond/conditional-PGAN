@@ -146,9 +146,7 @@ class PGAN(Model):
         self.discriminator_wt_fade = None
         self.generator = self.init_generator()
         self.generator_wt_fade = None
-
-    def set_class(self, c):
-        self.character_class = c
+        self.alpha = backend.variable(0.0, name='log_alpha')
 
     def call(self, inputs):
         return
@@ -192,11 +190,7 @@ class PGAN(Model):
         img_input = tf.cast(img_input, tf.float32)
 
         label_input = layers.Input(shape = (1,))
-        label_embedding = layers.Embedding(self.num_classes, 32)(label_input)
-        label_embedding = layers.Reshape((4,4,2))(label_embedding)
-
-        label_input = layers.Input(shape = (1,))
-        label_embedding = layers.Embedding(2, input_shape[0]*input_shape[1]*2)(label_input)
+        label_embedding = layers.Embedding(self.num_classes, input_shape[0]*input_shape[1]*2)(label_input)
         label_embedding = layers.Reshape((input_shape[0],input_shape[1],2))(label_embedding)
 
         concat_input = layers.Concatenate()([img_input, label_embedding])
@@ -413,4 +407,5 @@ class PGAN(Model):
         g_gradient = tape.gradient(g_loss, self.generator.trainable_variables)
         # Update the weights of the generator using the generator optimizer
         self.g_optimizer.apply_gradients(zip(g_gradient, self.generator.trainable_variables))
-        return {'d_loss': d_loss, 'g_loss': g_loss}
+
+        return {'d_loss': d_loss, 'g_loss': g_loss, 'alpha': self.alpha}
