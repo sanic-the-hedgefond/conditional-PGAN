@@ -207,10 +207,10 @@ class PGAN(Model):
         # 2. Add pooling layer 
         #    Reuse the existing “formRGB” block defined as “x1".
         x1 = layers.AveragePooling2D()(concat_input)
-        x1 = self.discriminator.layers[1 + (self.n_depth*4)](x1) # Conv2D FromRGB
-        x1 = self.discriminator.layers[2 + (self.n_depth*4)](x1) # WeightScalingLayer
-        x1 = self.discriminator.layers[3 + (self.n_depth*4)](x1) # Bias
-        x1 = self.discriminator.layers[4 + (self.n_depth*4)](x1) # LeakyReLU
+        x1 = self.discriminator.layers[1 + (min(self.n_depth, 2) * 4)](x1) # Conv2D FromRGB
+        x1 = self.discriminator.layers[2 + (min(self.n_depth, 2) * 4)](x1) # WeightScalingLayer
+        x1 = self.discriminator.layers[3 + (min(self.n_depth, 2) * 4)](x1) # Bias
+        x1 = self.discriminator.layers[4 + (min(self.n_depth, 2) * 4)](x1) # LeakyReLU
 
         # 3.  Define a "fade in" block (x2) with a new "fromRGB" and two 3x3 convolutions. 
         #     Add an AveragePooling2D layer
@@ -225,12 +225,12 @@ class PGAN(Model):
         x = WeightedSum()([x1, x2])
 
         # Define stabilized(c. state) discriminator 
-        for i in range(5 + (self.n_depth*4), len(self.discriminator.layers)):
+        for i in range(5 + (self.n_depth * 4), len(self.discriminator.layers)):
             x2 = self.discriminator.layers[i](x2)
         self.discriminator_stabilize = Model([img_input, label_input], x2, name='discriminator')
 
         # 5. Add existing discriminator layers. 
-        for i in range(5 + (self.n_depth*4), len(self.discriminator.layers)):
+        for i in range(5 + (self.n_depth * 4), len(self.discriminator.layers)):
             x = self.discriminator.layers[i](x)
         self.discriminator = Model([img_input, label_input], x, name='discriminator')
 
