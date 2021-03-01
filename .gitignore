@@ -2,3 +2,4 @@ ckpts/
 images/
 figures/
 __pycache__/
+.vscode/
