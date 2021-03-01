@@ -157,8 +157,8 @@ class PGAN(Model):
 
         # Convert classindex to 4x4x2 Layer and concat with image input
         label_input = layers.Input(shape = (1,))
-        label_embedding = layers.Embedding(self.num_classes, 4*4*2)(label_input)
-        label_embedding = layers.Reshape((4,4,2))(label_embedding)
+        label_embedding = layers.Embedding(self.num_classes, 4*4*2, name="embedding")(label_input)
+        label_embedding = layers.Reshape((4,4,2), name="reshape")(label_embedding)
 
         concat_input = layers.Concatenate()([img_input, label_embedding])
         
@@ -193,9 +193,12 @@ class PGAN(Model):
         label_embedding = layers.Embedding(self.num_classes, input_shape[0]*input_shape[1]*2)(label_input)
         label_embedding = layers.Reshape((input_shape[0],input_shape[1],2))(label_embedding)
 
+        # Reuse existing Embedding block (Fade out with WeightedSum layer during training)
         label_embedding_old = self.discriminator.layers[1](label_input) # Embedding
-        label_embedding_old = self.discriminator.layers[2](label_embedding_old) # Reshape
-        label_embedding_old = UpSampling2D()(label_embedding_old)
+        label_embedding_old = self.discriminator.layers[3](label_embedding_old) # Reshape
+        #label_embedding_old = self.discriminator.get_layer("embedding")(label_input) # Embedding
+        #label_embedding_old = self.discriminator.get_layer("reshape")(label_embedding_old) # Reshape
+        label_embedding_old = UpSampling2D((2**(self.n_depth)))(label_embedding_old)
 
         weighted_embedding = WeightedSum()([label_embedding, label_embedding_old])
 
@@ -204,10 +207,10 @@ class PGAN(Model):
         # 2. Add pooling layer 
         #    Reuse the existing “formRGB” block defined as “x1".
         x1 = layers.AveragePooling2D()(concat_input)
-        x1 = self.discriminator.layers[5](x1) # Conv2D FromRGB
-        x1 = self.discriminator.layers[6](x1) # WeightScalingLayer
-        x1 = self.discriminator.layers[7](x1) # Bias
-        x1 = self.discriminator.layers[8](x1) # LeakyReLU
+        x1 = self.discriminator.layers[1 + (self.n_depth*4)](x1) # Conv2D FromRGB
+        x1 = self.discriminator.layers[2 + (self.n_depth*4)](x1) # WeightScalingLayer
+        x1 = self.discriminator.layers[3 + (self.n_depth*4)](x1) # Bias
+        x1 = self.discriminator.layers[4 + (self.n_depth*4)](x1) # LeakyReLU
 
         # 3.  Define a "fade in" block (x2) with a new "fromRGB" and two 3x3 convolutions. 
         #     Add an AveragePooling2D layer
@@ -222,12 +225,12 @@ class PGAN(Model):
         x = WeightedSum()([x1, x2])
 
         # Define stabilized(c. state) discriminator 
-        for i in range(5+4, len(self.discriminator.layers)):
+        for i in range(5 + (self.n_depth*4), len(self.discriminator.layers)):
             x2 = self.discriminator.layers[i](x2)
         self.discriminator_stabilize = Model([img_input, label_input], x2, name='discriminator')
 
         # 5. Add existing discriminator layers. 
-        for i in range(5+4, len(self.discriminator.layers)):
+        for i in range(5 + (self.n_depth*4), len(self.discriminator.layers)):
             x = self.discriminator.layers[i](x)
         self.discriminator = Model([img_input, label_input], x, name='discriminator')
 
@@ -334,10 +337,10 @@ class PGAN(Model):
         return gp
 
     def train_step(self, data):
-        real_images = data[0][0]
-        labels = data[1][0]
+        real_images = data[0]
+        labels = data[1]
 
-        print(data[0].shape)
+        #print(data[0].shape)
 
         # Get the batch size
         batch_size = tf.shape(real_images)[0]

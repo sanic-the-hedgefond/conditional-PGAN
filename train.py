@@ -81,13 +81,15 @@ class GANMonitor(keras.callbacks.Callback):
 # DEFINE PARAMETERS
 NOISE_DIM = 50
 NUM_CHARS = 2
-STEP = 40 # reduce size of dataset by 1/STEP
-training_set = dataset.get_labeled_data(IM_SIZE=4, num_chars=NUM_CHARS, step=STEP, FONT_DIR="../font_cgan/fonts/")
+STEP = 15 # reduce size of dataset by 1/STEP
+#FONT_DIR = "../font_cgan/fonts/"
+FONT_DIR = "../../font_GAN/fonts/"
+training_set = dataset.get_labeled_data(IM_SIZE=4, num_chars=NUM_CHARS, step=STEP, FONT_DIR=FONT_DIR)
 
 # Set the number of batches, epochs and steps for trainining.
 BATCH_SIZE = [32, 16, 16, 16, 8, 4, 4, 2, 2]
 EPOCHS = 1
-DISCRIMINATOR_STEPS = 2
+DISCRIMINATOR_STEPS = 1
 STEPS_PER_EPOCH = len(training_set[0][0]) / BATCH_SIZE[0]
 
 #print("Train IMG shape: ", next(iter(train_dataset))[0].shape)
@@ -96,8 +98,6 @@ STEPS_PER_EPOCH = len(training_set[0][0]) / BATCH_SIZE[0]
 # learning_rate will be equalized per each layers by the WeightScaling scheme
 generator_optimizer = keras.optimizers.Adam(learning_rate=0.001, beta_1=0.0, beta_2=0.99, epsilon=1e-8)
 discriminator_optimizer = keras.optimizers.Adam(learning_rate=0.001, beta_1=0.0, beta_2=0.99, epsilon=1e-8)
-
-
 
 cbk = GANMonitor(num_img=64, latent_dim=NOISE_DIM, prefix='0_init')
 cbk.set_steps(steps_per_epoch=STEPS_PER_EPOCH, epochs=EPOCHS)
@@ -133,7 +133,7 @@ for n_depth in range(1, len(BATCH_SIZE)):
   pgan.n_depth = n_depth
 
   # Set parameters like epochs, steps, batch size and image size
-  training_set = dataset.get_labeled_data(IM_SIZE=2**(n_depth+2), num_chars=NUM_CHARS, step=STEP, FONT_DIR="../font_cgan/fonts/")
+  training_set = dataset.get_labeled_data(IM_SIZE=2**(n_depth+2), num_chars=NUM_CHARS, step=STEP, FONT_DIR=FONT_DIR)
   STEPS_PER_EPOCH = len(training_set[0][0]) / BATCH_SIZE[n_depth]
   
   cbk.set_steps(steps_per_epoch=STEPS_PER_EPOCH, epochs=EPOCHS)
@@ -180,4 +180,3 @@ for n_depth in range(1, len(BATCH_SIZE)):
   # Save models
   checkpoint_path = f"ckpts/pgan_{2**(n_depth+2)}x{2**(n_depth+2)}.ckpt"
   pgan.save_weights(checkpoint_path)
-
