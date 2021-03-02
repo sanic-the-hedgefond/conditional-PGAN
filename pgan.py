@@ -204,13 +204,15 @@ class PGAN(Model):
 
         concat_input = layers.Concatenate()([img_input, weighted_embedding])
 
+        #concat_input_stabilize = layers.Concatenate()([img_input, label_embedding])
+
         # 2. Add pooling layer 
-        #    Reuse the existing “formRGB” block defined as “x1".
+        #    Reuse the existing “fromRGB” block defined as “x1".
         x1 = layers.AveragePooling2D()(concat_input)
-        x1 = self.discriminator.layers[1 + (min(self.n_depth, 2) * 4)](x1) # Conv2D FromRGB
-        x1 = self.discriminator.layers[2 + (min(self.n_depth, 2) * 4)](x1) # WeightScalingLayer
-        x1 = self.discriminator.layers[3 + (min(self.n_depth, 2) * 4)](x1) # Bias
-        x1 = self.discriminator.layers[4 + (min(self.n_depth, 2) * 4)](x1) # LeakyReLU
+        x1 = self.discriminator.layers[5](x1) # Conv2D FromRGB
+        x1 = self.discriminator.layers[6](x1) # WeightScalingLayer
+        x1 = self.discriminator.layers[7](x1) # Bias
+        x1 = self.discriminator.layers[8](x1) # LeakyReLU
 
         # 3.  Define a "fade in" block (x2) with a new "fromRGB" and two 3x3 convolutions. 
         #     Add an AveragePooling2D layer
@@ -225,12 +227,21 @@ class PGAN(Model):
         x = WeightedSum()([x1, x2])
 
         # Define stabilized(c. state) discriminator 
-        for i in range(5 + (self.n_depth * 4), len(self.discriminator.layers)):
+        for i in range(9, len(self.discriminator.layers)):
             x2 = self.discriminator.layers[i](x2)
         self.discriminator_stabilize = Model([img_input, label_input], x2, name='discriminator')
 
+        '''
+        # Delete fadein embedding block
+        new_concat = layers.Concatenate()([self.discriminator_stabilize.layers[4], self.discriminator_stabilize.layers[6]])
+        x3 = self.discriminator_stabilize.layers[9](new_concat)
+        for i in range(10, len(self.discriminator_stabilize.layers)):
+            x3 = self.discriminator_stabilize.layers[i]
+        self.discriminator_stabilize = Model([img_input, label_input], x3, name='discriminator')
+        '''
+
         # 5. Add existing discriminator layers. 
-        for i in range(5 + (self.n_depth * 4), len(self.discriminator.layers)):
+        for i in range(9, len(self.discriminator.layers)):
             x = self.discriminator.layers[i](x)
         self.discriminator = Model([img_input, label_input], x, name='discriminator')
 
