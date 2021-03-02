@@ -181,8 +181,6 @@ class PGAN(Model):
 
     # Fade in upper resolution block
     def fade_in_discriminator(self):
-        #for layer in self.discriminator.layers:
-        #    layer.trainable = False
         input_shape = list(self.discriminator.input[0].shape)
         # 1. Double the input resolution. 
         input_shape = (input_shape[1]*2, input_shape[2]*2, input_shape[3])
@@ -190,29 +188,24 @@ class PGAN(Model):
         img_input = tf.cast(img_input, tf.float32)
 
         label_input = layers.Input(shape = (1,))
-        label_embedding = layers.Embedding(self.num_classes, input_shape[0]*input_shape[1]*2)(label_input)
-        label_embedding = layers.Reshape((input_shape[0],input_shape[1],2))(label_embedding)
 
-        # Reuse existing Embedding block (Fade out with WeightedSum layer during training)
-        label_embedding_old = self.discriminator.layers[1](label_input) # Embedding
-        label_embedding_old = self.discriminator.layers[3](label_embedding_old) # Reshape
-        #label_embedding_old = self.discriminator.get_layer("embedding")(label_input) # Embedding
-        #label_embedding_old = self.discriminator.get_layer("reshape")(label_embedding_old) # Reshape
-        label_embedding_old = UpSampling2D((2**(self.n_depth)))(label_embedding_old)
+        # Reuse existing Embedding block
+        label_embedding = self.discriminator.get_layer("embedding")(label_input) # Embedding
+        label_embedding = self.discriminator.get_layer("reshape")(label_embedding) # Reshape
+        label_embedding = UpSampling2D((2**(self.n_depth)))(label_embedding)
 
-        weighted_embedding = WeightedSum()([label_embedding, label_embedding_old])
-
-        concat_input = layers.Concatenate()([img_input, weighted_embedding])
-
-        #concat_input_stabilize = layers.Concatenate()([img_input, label_embedding])
+        concat_input = layers.Concatenate()([img_input, label_embedding])
 
         # 2. Add pooling layer 
         #    Reuse the existing “fromRGB” block defined as “x1".
         x1 = layers.AveragePooling2D()(concat_input)
-        x1 = self.discriminator.layers[5](x1) # Conv2D FromRGB
-        x1 = self.discriminator.layers[6](x1) # WeightScalingLayer
-        x1 = self.discriminator.layers[7](x1) # Bias
-        x1 = self.discriminator.layers[8](x1) # LeakyReLU
+
+        start = 4 + min(self.n_depth, 2)
+        for i in range(start, start+4):
+            x1 = self.discriminator.layers[i](x1) # Conv2D FromRGB
+            #x1 = self.discriminator.layers[6+self.n_depth-1](x1) # WeightScalingLayer
+            #x1 = self.discriminator.layers[7+self.n_depth-1](x1) # Bias
+            #x1 = self.discriminator.layers[8+self.n_depth-1](x1) # LeakyReLU
 
         # 3.  Define a "fade in" block (x2) with a new "fromRGB" and two 3x3 convolutions. 
         #     Add an AveragePooling2D layer
@@ -227,7 +220,7 @@ class PGAN(Model):
         x = WeightedSum()([x1, x2])
 
         # Define stabilized(c. state) discriminator 
-        for i in range(9, len(self.discriminator.layers)):
+        for i in range(8 + min(self.n_depth, 2), len(self.discriminator.layers)):
             x2 = self.discriminator.layers[i](x2)
         self.discriminator_stabilize = Model([img_input, label_input], x2, name='discriminator')
 
@@ -241,7 +234,7 @@ class PGAN(Model):
         '''
 
         # 5. Add existing discriminator layers. 
-        for i in range(9, len(self.discriminator.layers)):
+        for i in range(8 + min(self.n_depth, 2), len(self.discriminator.layers)):
             x = self.discriminator.layers[i](x)
         self.discriminator = Model([img_input, label_input], x, name='discriminator')
 
