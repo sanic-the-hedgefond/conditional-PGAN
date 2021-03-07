@@ -165,7 +165,7 @@ class PGAN(Model):
     def set_random_seed(self, seed):
         self.random_seed = seed
 
-    def increment_seed(self):
+    def increment_random_seed(self):
         self.random_seed += self.d_steps + 1
 
     def init_discriminator(self):

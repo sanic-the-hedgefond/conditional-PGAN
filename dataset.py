@@ -37,6 +37,10 @@ class DatasetGenerator:
     def set_batch(self):
         self.batch = self.batch_generator(self.dataset)
 
+    def reset_generator(self):
+        self.set_dataset()
+        self.set_batch()
+
     def dataset_generator(self):
         for font_file in self.fonts:
             font = ImageFont.truetype(font_file, int(self.im_size*(3.0/4.0)))
