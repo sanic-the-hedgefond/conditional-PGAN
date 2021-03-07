@@ -13,7 +13,7 @@ from tensorflow.keras.layers import Layer
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras import backend
 
-FILTERS = [256, 256, 128, 64, 64, 64, 32, 16, 8]
+FILTERS = [256, 128, 128, 64, 64, 64, 32, 16, 8]
 
 
 # Normalizes the feature vector for the pixel(axis=-1)
@@ -132,6 +132,7 @@ class PGAN(Model):
         latent_dim,
         num_classes,
         d_steps=1,
+        seed=0,
         gp_weight=10.0,
         drift_weight=0.001,
     ):
@@ -139,6 +140,7 @@ class PGAN(Model):
         self.latent_dim = latent_dim
         self.num_classes = num_classes
         self.d_steps = d_steps
+        self.random_seed = seed
         self.gp_weight = gp_weight
         self.drift_weight = drift_weight
         self.n_depth = 0
@@ -150,6 +152,21 @@ class PGAN(Model):
 
     def call(self, inputs):
         return
+
+    def set_alpha(self, alpha):
+        backend.set_value(self.alpha, alpha)
+        for layer in self.generator.layers:
+            if isinstance(layer, WeightedSum):
+                backend.set_value(layer.alpha, alpha)
+        for layer in self.discriminator.layers:
+            if isinstance(layer, WeightedSum):
+                backend.set_value(layer.alpha, alpha)
+
+    def set_random_seed(self, seed):
+        self.random_seed = seed
+
+    def increment_seed(self):
+        self.random_seed += self.d_steps + 1
 
     def init_discriminator(self):
         img_input = layers.Input(shape = (4,4,1))
@@ -341,12 +358,8 @@ class PGAN(Model):
         return gp
 
     def train_step(self, data):
-        print(data[0].shape)
-        print(data[1].shape)
         real_images = data[0]
         labels = data[1]
-
-        #print(data[0].shape)
 
         # Get the batch size
         batch_size = tf.shape(real_images)[0]
@@ -364,20 +377,13 @@ class PGAN(Model):
         # the discriminator for `x` more steps (typically 5) as compared to
         # one step of the generator. Here we will train it for 3 extra steps
         # as compared to 5 to reduce the training time.
-        for _ in range(self.d_steps):
+        for i in range(self.d_steps):
             # Get the latent vector
-            random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
-
-            #onehot = [0,0]
-            #onehot[self.character_class] = 1
-            #onehot = tf.convert_to_tensor([onehot], dtype=tf.float32)
-            #onehot = tf.repeat(onehot, batch_size, axis=0)
-
-            #random_latent_vectors = tf.concat([random_latent_vectors, onehot], axis=-1)
+            random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim), seed=self.random_seed + i)
 
             with tf.GradientTape() as tape:
                 # Generate fake images from the latent vector
-                fake_images = self.generator([random_latent_vectors, labels], training=True)
+                fake_images = self.generator([random_latent_vectors[:batch_size], labels], training=True)
                 # Get the logits for the fake images
                 fake_logits = self.discriminator([fake_images, labels], training=True)
                 # Get the logits for the real images
@@ -402,7 +408,7 @@ class PGAN(Model):
 
         # Train the generator
         # Get the latent vector
-        random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
+        random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim), seed=self.random_seed + self.d_steps)
 
         #onehot = [0,0]
         #onehot[self.character_class] = 1
@@ -413,7 +419,7 @@ class PGAN(Model):
         
         with tf.GradientTape() as tape:
             # Generate fake images using the generator
-            generated_images = self.generator([random_latent_vectors, labels], training=True)
+            generated_images = self.generator([random_latent_vectors[:batch_size], labels], training=True)
             # Get the discriminator logits for fake images
             gen_img_logits = self.discriminator([generated_images, labels], training=True)
             # Calculate the generator loss
