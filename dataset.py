@@ -7,7 +7,7 @@ import itertools
 #import re
 
 class DatasetGenerator:
-    def __init__(self, im_size=4, num_chars=1, step=1, batch_size=16, font_dir='C:/Users/Schnee/Google Drive/Informatik Studium/Semester10/Master/font_GAN/fonts/'):
+    def __init__(self, im_size=4, num_chars=1, step=1, batch_size=16, font_dir='fonts/'):
         self.im_size = im_size
         self.num_chars = num_chars
         self.step = step

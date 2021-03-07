@@ -1,5 +1,6 @@
 ckpts/
 images/
 figures/
+training/
 __pycache__/
 .vscode/
