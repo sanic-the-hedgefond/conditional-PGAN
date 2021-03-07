@@ -341,6 +341,8 @@ class PGAN(Model):
         return gp
 
     def train_step(self, data):
+        print(data[0].shape)
+        print(data[1].shape)
         real_images = data[0]
         labels = data[1]
 

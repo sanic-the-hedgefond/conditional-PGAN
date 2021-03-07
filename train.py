@@ -12,6 +12,7 @@ from pgan import PGAN, WeightedSum
 from tensorflow.keras import backend
 
 import dataset
+import datasetGenerator
 
 # Create a Keras callback that periodically saves generated images and updates alpha in WeightedSum layers
 class GANMonitor(keras.callbacks.Callback):
@@ -80,17 +81,19 @@ class GANMonitor(keras.callbacks.Callback):
 
 # DEFINE PARAMETERS
 NOISE_DIM = 50
-NUM_CHARS = 2
+NUM_CHARS = 4
 STEP = 15 # reduce size of dataset by 1/STEP
 #FONT_DIR = "../font_cgan/fonts/"
 FONT_DIR = "../../font_GAN/fonts/"
-training_set = dataset.get_labeled_data(IM_SIZE=4, num_chars=NUM_CHARS, step=STEP, FONT_DIR=FONT_DIR)
+#training_set = dataset.get_labeled_data(IM_SIZE=4, num_chars=NUM_CHARS, step=STEP, FONT_DIR=FONT_DIR)
+training_set = datasetGenerator.data_generator(IM_SIZE=4, num_chars=NUM_CHARS, step=STEP, FONT_DIR=FONT_DIR)
 
 # Set the number of batches, epochs and steps for trainining.
 BATCH_SIZE = [32, 16, 16, 16, 8, 4, 4, 2, 2]
-EPOCHS = 1
-DISCRIMINATOR_STEPS = 1
-STEPS_PER_EPOCH = len(training_set[0][0]) / BATCH_SIZE[0]
+EPOCHS = 5
+DISCRIMINATOR_STEPS = 2
+NUM_FONTS = datasetGenerator.get_num_fonts(step=STEP)
+STEPS_PER_EPOCH = NUM_FONTS * NUM_CHARS / BATCH_SIZE[0]
 
 #print("Train IMG shape: ", next(iter(train_dataset))[0].shape)
 
@@ -121,11 +124,8 @@ pgan.compile(
 tf.keras.utils.plot_model(pgan.generator, to_file=f'images/generator_{pgan.n_depth}.png', show_shapes=True)
 tf.keras.utils.plot_model(pgan.discriminator, to_file=f'images/discriminator_{pgan.n_depth}.png', show_shapes=True)
 
-for i in range(NUM_CHARS):
-  cbk.set_prefix(f"init_4x4_class_{i}")
-
-  # Start training the initial generator and discriminator
-  pgan.fit(x=training_set[0][i], y=training_set[1][i], batch_size=BATCH_SIZE[0], epochs = EPOCHS, callbacks=[cbk])
+# Start training the initial generator and discriminator
+pgan.fit(training_set, batch_size=BATCH_SIZE[0], epochs = EPOCHS, callbacks=[cbk])
 
 # Train faded-in / stabilized generators and discriminators
 for n_depth in range(1, len(BATCH_SIZE)):
