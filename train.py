@@ -13,18 +13,18 @@ from dataset import DatasetGenerator
 
 # DEFINE PARAMETERS
 latent_dim = 50
-num_chars = 2
-step = 20 # Reduce size of dataset by this factor
+num_chars = 26
+step = 1 # Reduce size of dataset by this factor
 batch_size = [64, 32, 16, 16, 8, 4, 4, 2, 2]
-epochs = 1
-discriminator_steps = 2
+epochs = 3
+discriminator_steps = 4
 
 training_dir = f'training/{datetime.now().strftime("%Y-%m-%d-%H%M%S")}/'
-#font_dir = '../fonts/' # Remote
-font_dir= 'C:/Users/Schnee/Datasets/Fonts01CleanUp/' # Local
+font_dir = '../Datasets/Fonts01CleanUp/' # Remote
+#font_dir= 'C:/Users/Schnee/Datasets/Fonts01CleanUp/' # Local
 image_dir = 'images/'
 
-save_model = False
+save_model = True
 
 if not os.path.exists(f'{training_dir}{image_dir}models/'):
   os.makedirs(f'{training_dir}{image_dir}models/')
@@ -41,10 +41,14 @@ pgan = PGAN(
     d_steps = discriminator_steps,
 )
 
-def generate_images(shape = (num_chars, 4), name='init', postfix=''):
+def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
   num_img = shape[0] * shape[1]
 
   random_latent_vectors = tf.random.normal(shape=[int(num_img/num_chars), latent_dim])
+  if seed:
+    random_latent_vectors = tf.random.normal(shape=[int(num_img/num_chars), latent_dim], seed=seed)
+    postfix += f'_fixed_seed_{seed}'
+
   random_latent_vectors = tf.repeat(random_latent_vectors, num_chars, axis=0)
 
   labels = [0] * num_img
@@ -84,13 +88,15 @@ def train_stage(epochs, im_size, step, batch_size, name):
       for cur_char in range(num_chars):
         batch_images, batch_labels = map(np.asarray, zip(*batch[cur_char::num_chars]))
         loss = pgan.train_on_batch(x=batch_images, y=batch_labels, return_dict=True)
-        print(f'Size {im_size}x{im_size} // Epoch {cur_epoch+1} // Batch {cur_batch}/{num_fonts//batch_size} // Class {cur_char} // {loss}')
+        print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1} // Batch {cur_batch}/{num_fonts//batch_size} // Class {cur_char} // {loss}')
       pgan.increment_random_seed()
     training_set.reset_generator()
     generate_images(name=name, postfix=f'_epoch{cur_epoch+1}')
+    generate_images(name=name, postfix=f'_epoch{cur_epoch+1}', seed=707)
   generate_images(shape=(num_chars, 8), name=name, postfix='_final')
+  generate_images(shape=(num_chars, 8), name=name, postfix='_final', seed=707)
   if save_model:
-    pgan.generator.save(f'{training_dir}pgan_stage_{pgan.n_depth}')
+    pgan.generator.save(f'{training_dir}pgan_stage_{pgan.n_depth}_{name}')
 
 plot_models()
 
