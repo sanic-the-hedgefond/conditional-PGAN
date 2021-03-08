@@ -13,15 +13,18 @@ from dataset import DatasetGenerator
 
 # DEFINE PARAMETERS
 latent_dim = 50
-num_chars = 4
-step = 5 # reduce size of dataset by 1/step
-batch_size = [32, 16, 16, 16, 8, 4, 4, 2, 2]
-epochs = 8
-discriminator_steps = 3
+num_chars = 2
+step = 20 # Reduce size of dataset by this factor
+batch_size = [64, 32, 16, 16, 8, 4, 4, 2, 2]
+epochs = 1
+discriminator_steps = 2
 
 training_dir = f'training/{datetime.now().strftime("%Y-%m-%d-%H%M%S")}/'
-font_dir = "../../font_GAN/fonts/"
-image_dir = "images/"
+#font_dir = '../fonts/' # Remote
+font_dir= 'C:/Users/Schnee/Datasets/Fonts01CleanUp/' # Local
+image_dir = 'images/'
+
+save_model = False
 
 if not os.path.exists(f'{training_dir}{image_dir}models/'):
   os.makedirs(f'{training_dir}{image_dir}models/')
@@ -38,7 +41,9 @@ pgan = PGAN(
     d_steps = discriminator_steps,
 )
 
-def generate_images(num_img = 16, name='init', postfix=''):
+def generate_images(shape = (num_chars, 4), name='init', postfix=''):
+  num_img = shape[0] * shape[1]
+
   random_latent_vectors = tf.random.normal(shape=[int(num_img/num_chars), latent_dim])
   random_latent_vectors = tf.repeat(random_latent_vectors, num_chars, axis=0)
 
@@ -49,17 +54,16 @@ def generate_images(num_img = 16, name='init', postfix=''):
 
   samples = pgan.generator([random_latent_vectors, labels])
   samples = (samples * 0.5) + 0.5
-  n_grid = int(sqrt(num_img))
 
   im_size = samples.shape[1]
 
-  fig, axes = pyplot.subplots(n_grid, n_grid, figsize=(4*n_grid, 4*n_grid))
-  sample_grid = np.reshape(samples[:n_grid * n_grid], (n_grid, n_grid, samples.shape[1], samples.shape[2], samples.shape[3]))
+  fig, axes = pyplot.subplots(shape[1], shape[0], figsize=(4*shape[0], 4*shape[1]))
+  sample_grid = np.reshape(samples[:shape[0] * shape[1]], (shape[0], shape[1], samples.shape[1], samples.shape[2], samples.shape[3]))
 
-  for i in range(n_grid):
-    for j in range(n_grid):
+  for i in range(shape[1]):
+    for j in range(shape[0]):
       axes[i][j].set_axis_off()
-      samples_grid_i_j = Image.fromarray((sample_grid[i][j] * 255).astype(np.uint8).squeeze(), mode="L")
+      samples_grid_i_j = Image.fromarray((sample_grid[j][i] * 255).astype(np.uint8).squeeze(), mode="L")
       samples_grid_i_j = samples_grid_i_j.resize((128,128), resample=Image.NEAREST)
       axes[i][j].imshow(np.array(samples_grid_i_j), cmap='gray')
   title = f'{training_dir}{image_dir}plot_{im_size}x{im_size}_{name}{postfix}.png'
@@ -71,7 +75,7 @@ def plot_models():
   tf.keras.utils.plot_model(pgan.generator, to_file=f'{training_dir}{image_dir}models/generator_{pgan.n_depth}.png', show_shapes=True)
   tf.keras.utils.plot_model(pgan.discriminator, to_file=f'{training_dir}{image_dir}models/discriminator_{pgan.n_depth}.png', show_shapes=True)
 
-def train_stage(epochs=1, im_size=4, step=1, batch_size=32, name='init'):
+def train_stage(epochs, im_size, step, batch_size, name):
   training_set = DatasetGenerator(im_size=im_size, num_chars=num_chars, step=step, batch_size=batch_size, font_dir=font_dir)
   num_fonts = training_set.get_num_fonts()
   for cur_epoch in range(epochs):
@@ -84,8 +88,9 @@ def train_stage(epochs=1, im_size=4, step=1, batch_size=32, name='init'):
       pgan.increment_random_seed()
     training_set.reset_generator()
     generate_images(name=name, postfix=f'_epoch{cur_epoch+1}')
-  generate_images(num_img=64, name=name, postfix='_final')
-  pgan.save_weights(f'{training_dir}pgan_stage_{pgan.n_depth}.ckpt')
+  generate_images(shape=(num_chars, 8), name=name, postfix='_final')
+  if save_model:
+    pgan.generator.save(f'{training_dir}pgan_stage_{pgan.n_depth}')
 
 plot_models()
 
@@ -95,7 +100,7 @@ pgan.compile(
 )
 
 # Start training the initial generator and discriminator
-train_stage(epochs=epochs, im_size=4, step=step, batch_size=batch_size[0])
+train_stage(epochs=epochs, im_size=4, step=step, batch_size=batch_size[0], name='init')
 
 # Train faded-in / stabilized generators and discriminators
 for n_depth in range(1, len(batch_size)):

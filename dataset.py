@@ -107,13 +107,14 @@ class DatasetGenerator:
 
         for font_file in self.fonts:
             font = ImageFont.truetype(font_file, int(self.im_size*(3.0/4.0)))
-            im = Image.new('L', (self.im_size, self.im_size), 0)
-            draw = ImageDraw.Draw(im)
-            w, h = draw.textsize(char, font=font)
-            draw.text(((self.im_size-w)/2, (self.im_size-h)/2), char, font=font, fill='#FFF')
 
             for i, char in enumerate(self.chars):
-                    if(i < 26):
-                        im.save(output_dir + '{}_uppercase__{}__{}.png'.format(char, font_file.split('\\')[-1][:-4], self.im_size))
-                    else:
-                        im.save(output_dir + '{}_lowercase__{}__{}.png'.format(char, font_file.split('\\')[-1][:-4], self.im_size))
+                im = Image.new('L', (self.im_size, self.im_size), 0)
+                draw = ImageDraw.Draw(im)
+                w, h = draw.textsize(char, font=font)
+                draw.text(((self.im_size-w)/2, (self.im_size-h)/2), char, font=font, fill='#FFF')
+                
+                if(i < 26):
+                    im.save(output_dir + '{}_uppercase__{}__{}.png'.format(char, font_file.split('\\')[-1][:-4], self.im_size))
+                else:
+                    im.save(output_dir + '{}_lowercase__{}__{}.png'.format(char, font_file.split('\\')[-1][:-4], self.im_size))
