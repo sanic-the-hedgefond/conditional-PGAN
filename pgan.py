@@ -169,7 +169,7 @@ class PGAN(Model):
 
         # Convert classindex to 4x4x2 Layer and concat with image input
         label_input = layers.Input(shape = (1,))
-        label_embedding = layers.Embedding(self.num_classes, 8*8*2, name="embedding")(label_input)
+        label_embedding = layers.Embedding(self.num_classes, 4*4*2, name="embedding")(label_input)
         label_embedding = layers.Reshape((4,4,2), name="reshape")(label_embedding)
 
         concat_input = layers.Concatenate()([img_input, label_embedding])
