@@ -1,16 +1,11 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.initializers import RandomNormal
-from tensorflow.keras.constraints import max_norm
 from tensorflow.keras.layers import Add
 from tensorflow.keras.layers import UpSampling2D
-from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Layer
-from tensorflow.keras.layers import Concatenate
 from tensorflow.keras import backend
 
 FILTERS = [256, 128, 128, 64, 64, 64, 32, 16, 8]
@@ -174,7 +169,7 @@ class PGAN(Model):
 
         # Convert classindex to 4x4x2 Layer and concat with image input
         label_input = layers.Input(shape = (1,))
-        label_embedding = layers.Embedding(self.num_classes, 4*4*2, name="embedding")(label_input)
+        label_embedding = layers.Embedding(self.num_classes, 8*8*2, name="embedding")(label_input)
         label_embedding = layers.Reshape((4,4,2), name="reshape")(label_embedding)
 
         concat_input = layers.Concatenate()([img_input, label_embedding])
@@ -269,8 +264,8 @@ class PGAN(Model):
         noise = layers.Input(shape=(self.latent_dim))
 
         label_input = layers.Input(shape=(1,))
-        label = layers.Embedding(self.num_classes, 20)(label_input)
-        label = layers.Reshape((20,))(label)
+        label = layers.Embedding(self.num_classes, 100)(label_input)
+        label = layers.Reshape((100,))(label)
 
         concat_input = layers.Concatenate()([noise, label])
 

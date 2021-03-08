@@ -13,15 +13,15 @@ from dataset import DatasetGenerator
 
 # DEFINE PARAMETERS
 latent_dim = 50
-num_chars = 26
-step = 1 # Reduce size of dataset by this factor
-batch_size = [64, 32, 16, 16, 8, 4, 4, 2, 2]
-epochs = 3
+num_chars = 8
+step = 4 # Reduce size of dataset by this factor
+batch_size = [64, 32, 32, 16, 8, 4, 4, 2, 2]
+epochs = 1
 discriminator_steps = 4
 
 training_dir = f'training/{datetime.now().strftime("%Y-%m-%d-%H%M%S")}/'
-font_dir = '../Datasets/Fonts01CleanUp/' # Remote
-#font_dir= 'C:/Users/Schnee/Datasets/Fonts01CleanUp/' # Local
+#font_dir = '../Datasets/Fonts01CleanUp/' # Remote
+font_dir= 'C:/Users/Schnee/Datasets/Fonts01CleanUp/' # Local
 image_dir = 'images/'
 
 save_model = True
@@ -51,9 +51,7 @@ def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
 
   random_latent_vectors = tf.repeat(random_latent_vectors, num_chars, axis=0)
 
-  labels = [0] * num_img
-  for i in range(num_img):
-    labels[i] = i % num_chars
+  labels = [i % num_chars for i in range(num_img)]
   labels = np.asarray(labels)
 
   samples = pgan.generator([random_latent_vectors, labels])
@@ -75,20 +73,20 @@ def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
   print(f'\n saved {title}')
   pyplot.close(fig)
 
-def plot_models():
-  tf.keras.utils.plot_model(pgan.generator, to_file=f'{training_dir}{image_dir}models/generator_{pgan.n_depth}.png', show_shapes=True)
-  tf.keras.utils.plot_model(pgan.discriminator, to_file=f'{training_dir}{image_dir}models/discriminator_{pgan.n_depth}.png', show_shapes=True)
+def plot_models(name):
+  tf.keras.utils.plot_model(pgan.generator, to_file=f'{training_dir}{image_dir}models/generator_{pgan.n_depth}_{name}.png', show_shapes=True)
+  tf.keras.utils.plot_model(pgan.discriminator, to_file=f'{training_dir}{image_dir}models/discriminator_{pgan.n_depth}_{name}.png', show_shapes=True)
 
 def train_stage(epochs, im_size, step, batch_size, name):
   training_set = DatasetGenerator(im_size=im_size, num_chars=num_chars, step=step, batch_size=batch_size, font_dir=font_dir)
   num_fonts = training_set.get_num_fonts()
-  for cur_epoch in range(epochs):
-    for cur_batch, batch in enumerate(training_set.batch):
-      pgan.set_alpha((cur_batch+1)/(num_fonts//batch_size)/epochs + (cur_epoch)/epochs)
+  for cur_epoch in range(epochs): # Iterate epochs
+    for cur_batch, batch in enumerate(training_set.batch): # Iterate batches
+      pgan.set_alpha((cur_batch)/(num_fonts//batch_size)/epochs + (cur_epoch)/epochs) # Set alpha for fade in layers (fade from 0 to 1 during whole stage)
       for cur_char in range(num_chars):
-        batch_images, batch_labels = map(np.asarray, zip(*batch[cur_char::num_chars]))
-        loss = pgan.train_on_batch(x=batch_images, y=batch_labels, return_dict=True)
-        print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1} // Batch {cur_batch}/{num_fonts//batch_size} // Class {cur_char} // {loss}')
+        batch_images, batch_labels = map(np.asarray, zip(*batch[cur_char::num_chars])) # Extract images and labels for current char from batch
+        loss = pgan.train_on_batch(x=batch_images, y=batch_labels, return_dict=True) # Train one batch
+        print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1} // Batch {cur_batch}/{num_fonts//batch_size} // Class {cur_char} // {loss}') # Logging
       pgan.increment_random_seed()
     training_set.reset_generator()
     generate_images(name=name, postfix=f'_epoch{cur_epoch+1}')
@@ -98,7 +96,7 @@ def train_stage(epochs, im_size, step, batch_size, name):
   if save_model:
     pgan.generator.save(f'{training_dir}pgan_stage_{pgan.n_depth}_{name}')
 
-plot_models()
+plot_models('init')
 
 pgan.compile(
     d_optimizer=discriminator_optimizer,
@@ -118,7 +116,7 @@ for n_depth in range(1, len(batch_size)):
   pgan.fade_in_discriminator()
 
   # Draw fade in generator and discriminator
-  plot_models()
+  plot_models('fade_in')
 
   pgan.compile(
       d_optimizer=discriminator_optimizer,
@@ -132,7 +130,7 @@ for n_depth in range(1, len(batch_size)):
   pgan.stabilize_discriminator()
 
   # Draw stabilized generator and discriminator
-  plot_models()
+  plot_models('stabilize')
 
   pgan.compile(
       d_optimizer=discriminator_optimizer,
