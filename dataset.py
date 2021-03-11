@@ -54,11 +54,12 @@ class DatasetGenerator:
                 im = np.array(im)/255.0*2.0 - 1.0
                 im = np.expand_dims(im, axis=-1)
 
-                '''
-                #create one-hot annotation vector + 3 for font characteristics
-                label = np.zeros((len(chars) + 3))
+                
+                #create one-hot annotation vector
+                label = np.zeros((len(self.chars)))
                 label[i] = 1
 
+                '''
                 if re.search('thin', font_file, re.IGNORECASE):
                     label[-3] = 0
                 elif re.search(('light'), font_file, re.IGNORECASE):
@@ -85,11 +86,11 @@ class DatasetGenerator:
                     label[-1] = 1
                 else:
                     label[-1] = 0
-                '''
 
                 label = i
+                '''
 
-                yield (im, np.asarray(label))
+                yield (im, label)
 
     def batch_generator(self, iterable):
         iterable = iter(iterable)

@@ -168,11 +168,16 @@ class PGAN(Model):
         img_input = tf.cast(img_input, tf.float32)
 
         # Convert classindex to 4x4x4 Layer and concat with image input
-        label_input = layers.Input(shape = (1,))
-        label_embedding = layers.Embedding(self.num_classes, 4*4*2, name="embedding")(label_input)
-        label_embedding = layers.Reshape((4,4,2), name="reshape")(label_embedding)
+        #label_input = layers.Input(shape = (1,))
+        #label_embedding = layers.Embedding(self.num_classes, 4*4*2, name="embedding")(label_input)
+        #label_embedding = layers.Reshape((4,4,2), name="reshape")(label_embedding)
 
-        concat_input = layers.Concatenate()([img_input, label_embedding])
+        label_input = layers.Input(shape = (self.num_classes))
+        
+        label = layers.Reshape((1, 1, self.num_classes))(label_input)
+        label = layers.UpSampling2D(4)(label)
+
+        concat_input = layers.Concatenate()([img_input, label])
         
         # fromRGB
         x = WeightScalingConv(concat_input, filters=FILTERS[0], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
@@ -200,11 +205,14 @@ class PGAN(Model):
         img_input = layers.Input(shape = input_shape)
         img_input = tf.cast(img_input, tf.float32)
 
-        label_input = layers.Input(shape = (1,))
-        label_embedding = layers.Embedding(self.num_classes, input_shape[0]*input_shape[1]*2)(label_input)
-        label_embedding = layers.Reshape((input_shape[0],input_shape[1],2))(label_embedding)
+        label_input = layers.Input(shape = (self.num_classes))
+        #label_embedding = layers.Embedding(self.num_classes, input_shape[0]*input_shape[1]*2)(label_input)
+        #label_embedding = layers.Reshape((input_shape[0],input_shape[1],2))(label_embedding)
 
-        concat_input = layers.Concatenate()([img_input, label_embedding])
+        label = layers.Reshape((1, 1, self.num_classes))(label_input)
+        label = layers.UpSampling2D(input_shape[0])(label)
+
+        concat_input = layers.Concatenate()([img_input, label])
 
         # 2. Add pooling layer 
         #    Reuse the existing “formRGB” block defined as “x1".
@@ -301,9 +309,10 @@ class PGAN(Model):
     def init_generator(self):
         noise = layers.Input(shape=(self.latent_dim))
 
-        label_input = layers.Input(shape=(1,))
-        label = layers.Embedding(self.num_classes, 50)(label_input)
-        label = layers.Reshape((50,))(label)
+        label = layers.Input(shape=(self.num_classes))
+        #label_input = layers.Input(shape=(1,))
+        #label = layers.Embedding(self.num_classes, 50)(label_input)
+        #label = layers.Reshape((50,))(label)
 
         concat_input = layers.Concatenate()([noise, label])
 
@@ -319,7 +328,7 @@ class PGAN(Model):
         # Gain should be 1, cos it's a last layer 
         x = WeightScalingConv(x, filters=1, kernel_size=(1,1), gain=1., activate='tanh', use_pixelnorm=False)
 
-        g_model = Model([noise, label_input], x, name='generator')
+        g_model = Model([noise, label], x, name='generator')
         g_model.summary()
         return g_model
 
