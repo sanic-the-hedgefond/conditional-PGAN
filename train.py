@@ -14,10 +14,10 @@ from dataset import DatasetGenerator
 # DEFINE PARAMETERS
 latent_dim = 50
 num_chars = 8
-step = 4 # Reduce size of dataset by this factor
-batch_size = [64, 32, 32, 16, 8, 4, 4, 2, 2]
+step = 1 # Reduce size of dataset by this factor
+batch_size = [32, 32, 32, 16, 8, 4, 4, 2, 1]
 epochs = 1
-discriminator_steps = 4
+discriminator_steps = 3
 
 training_dir = f'training/{datetime.now().strftime("%Y-%m-%d-%H%M%S")}/'
 #font_dir = '../Datasets/Fonts01CleanUp/' # Remote
@@ -87,6 +87,7 @@ def train_stage(epochs, im_size, step, batch_size, name):
         batch_images, batch_labels = map(np.asarray, zip(*batch[cur_char::num_chars])) # Extract images and labels for current char from batch
         loss = pgan.train_on_batch(x=batch_images, y=batch_labels, return_dict=True) # Train one batch
         print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1} // Batch {cur_batch}/{num_fonts//batch_size} // Class {cur_char} // {loss}') # Logging
+        print(batch_labels)
       pgan.increment_random_seed()
     training_set.reset_generator()
     generate_images(name=name, postfix=f'_epoch{cur_epoch+1}')
@@ -113,7 +114,7 @@ for n_depth in range(1, len(batch_size)):
 
   # Put fade in generator and discriminator
   pgan.fade_in_generator()
-  pgan.fade_in_discriminator()
+  pgan.fade_in_discriminator_new_embedding()
 
   # Draw fade in generator and discriminator
   plot_models('fade_in')

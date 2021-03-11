@@ -167,7 +167,7 @@ class PGAN(Model):
         img_input = layers.Input(shape = (4,4,1))
         img_input = tf.cast(img_input, tf.float32)
 
-        # Convert classindex to 4x4x2 Layer and concat with image input
+        # Convert classindex to 4x4x4 Layer and concat with image input
         label_input = layers.Input(shape = (1,))
         label_embedding = layers.Embedding(self.num_classes, 4*4*2, name="embedding")(label_input)
         label_embedding = layers.Reshape((4,4,2), name="reshape")(label_embedding)
@@ -191,8 +191,55 @@ class PGAN(Model):
         d_model.summary()
         return d_model
 
+    def fade_in_discriminator_new_embedding(self):
+        #for layer in self.discriminator.layers:
+        #    layer.trainable = False
+        input_shape = list(self.discriminator.input[0].shape)
+        # 1. Double the input resolution. 
+        input_shape = (input_shape[1]*2, input_shape[2]*2, input_shape[3])
+        img_input = layers.Input(shape = input_shape)
+        img_input = tf.cast(img_input, tf.float32)
+
+        label_input = layers.Input(shape = (1,))
+        label_embedding = layers.Embedding(self.num_classes, input_shape[0]*input_shape[1]*2)(label_input)
+        label_embedding = layers.Reshape((input_shape[0],input_shape[1],2))(label_embedding)
+
+        concat_input = layers.Concatenate()([img_input, label_embedding])
+
+        # 2. Add pooling layer 
+        #    Reuse the existing “formRGB” block defined as “x1".
+        x1 = layers.AveragePooling2D()(concat_input)
+        x1 = self.discriminator.layers[5](x1) # Conv2D FromRGB
+        x1 = self.discriminator.layers[6](x1) # WeightScalingLayer
+        x1 = self.discriminator.layers[7](x1) # Bias
+        x1 = self.discriminator.layers[8](x1) # LeakyReLU
+
+        # 3.  Define a "fade in" block (x2) with a new "fromRGB" and two 3x3 convolutions. 
+        #     Add an AveragePooling2D layer
+        x2 = WeightScalingConv(concat_input, filters=FILTERS[self.n_depth], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
+
+        x2 = WeightScalingConv(x2, filters=FILTERS[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
+        x2 = WeightScalingConv(x2, filters=FILTERS[self.n_depth-1], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
+
+        x2 = layers.AveragePooling2D()(x2)
+
+        # 4. Weighted Sum x1 and x2 to smoothly put the "fade in" block. 
+        x = WeightedSum()([x1, x2])
+
+        # Define stabilized(c. state) discriminator 
+        for i in range(5+4, len(self.discriminator.layers)):
+            x2 = self.discriminator.layers[i](x2)
+        self.discriminator_stabilize = Model([img_input, label_input], x2, name='discriminator')
+
+        # 5. Add existing discriminator layers. 
+        for i in range(5+4, len(self.discriminator.layers)):
+            x = self.discriminator.layers[i](x)
+        self.discriminator = Model([img_input, label_input], x, name='discriminator')
+
+        self.discriminator.summary()
+
     # Fade in upper resolution block
-    def fade_in_discriminator(self):
+    def fade_in_discriminator_upscale_embedding(self):
         input_shape = list(self.discriminator.input[0].shape)
         # 1. Double the input resolution. 
         input_shape = (input_shape[1]*2, input_shape[2]*2, input_shape[3])
@@ -204,6 +251,7 @@ class PGAN(Model):
         # Reuse existing Embedding block
         label_embedding = self.discriminator.get_layer("embedding")(label_input) # Embedding
         label_embedding = self.discriminator.get_layer("reshape")(label_embedding) # Reshape
+
         label_embedding = UpSampling2D((2**(self.n_depth)))(label_embedding)
 
         concat_input = layers.Concatenate()([img_input, label_embedding])
@@ -236,22 +284,12 @@ class PGAN(Model):
             x2 = self.discriminator.layers[i](x2)
         self.discriminator_stabilize = Model([img_input, label_input], x2, name='discriminator')
 
-        '''
-        # Delete fadein embedding block
-        new_concat = layers.Concatenate()([self.discriminator_stabilize.layers[4], self.discriminator_stabilize.layers[6]])
-        x3 = self.discriminator_stabilize.layers[9](new_concat)
-        for i in range(10, len(self.discriminator_stabilize.layers)):
-            x3 = self.discriminator_stabilize.layers[i]
-        self.discriminator_stabilize = Model([img_input, label_input], x3, name='discriminator')
-        '''
-
         # 5. Add existing discriminator layers. 
         for i in range(8 + min(self.n_depth, 2), len(self.discriminator.layers)):
             x = self.discriminator.layers[i](x)
         self.discriminator = Model([img_input, label_input], x, name='discriminator')
 
         self.discriminator.summary()
-
 
 
     # Change to stabilized(c. state) discriminator 
@@ -264,8 +302,8 @@ class PGAN(Model):
         noise = layers.Input(shape=(self.latent_dim))
 
         label_input = layers.Input(shape=(1,))
-        label = layers.Embedding(self.num_classes, 100)(label_input)
-        label = layers.Reshape((100,))(label)
+        label = layers.Embedding(self.num_classes, 50)(label_input)
+        label = layers.Reshape((50,))(label)
 
         concat_input = layers.Concatenate()([noise, label])
 
@@ -374,7 +412,7 @@ class PGAN(Model):
         # as compared to 5 to reduce the training time.
         for i in range(self.d_steps):
             # Get the latent vector
-            random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim), seed=self.random_seed + i)
+            random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))#, seed=self.random_seed + i)
 
             with tf.GradientTape() as tape:
                 # Generate fake images from the latent vector
@@ -403,7 +441,7 @@ class PGAN(Model):
 
         # Train the generator
         # Get the latent vector
-        random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim), seed=self.random_seed + self.d_steps)
+        random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))#, seed=self.random_seed + self.d_steps)
 
         #onehot = [0,0]
         #onehot[self.character_class] = 1
