@@ -12,18 +12,18 @@ from pgan import PGAN
 from dataset import DatasetGenerator
 
 latent_dim = 50
-num_chars = 4
+num_chars = 26
 step = 1 # Reduce size of dataset by this factor
 batch_size = [64, 32, 32, 16, 8, 4, 4, 2, 1]
-epochs = 1
-discriminator_steps = 3
+epochs = 2
+discriminator_steps = 4
 
 training_dir = f'training/{datetime.now().strftime("%Y-%m-%d-%H%M%S")}/'
 #font_dir = '../Datasets/Fonts01CleanUp/' # Remote
 font_dir= 'C:/Users/Schnee/Datasets/Fonts01CleanUp/' # Local
 image_dir = 'images/'
 
-save_model = False
+save_model = True
 
 if not os.path.exists(f'{training_dir}{image_dir}models/'):
   os.makedirs(f'{training_dir}{image_dir}models/')
