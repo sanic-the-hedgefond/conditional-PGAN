@@ -8,7 +8,7 @@ from tensorflow.keras.layers import UpSampling2D
 from tensorflow.keras.layers import Layer
 from tensorflow.keras import backend
 
-FILTERS = [256, 256, 128, 128, 128, 64, 64, 32, 16]
+FILTERS = [128, 128, 128, 64, 64, 64, 32, 16, 8]
 
 
 # Normalizes the feature vector for the pixel(axis=-1)
