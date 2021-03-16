@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QListWidget, QLabel, QSlider, QPushButton
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QListWidget, QLabel, QSlider, QPushButton, QShortcut
+from PyQt5.QtGui import QPixmap, QKeySequence
 from PyQt5.QtCore import Qt
 
 from PIL import ImageFont, ImageDraw, Image, ImageQt
@@ -19,7 +19,7 @@ label_file = '00_labels.yaml'
 current_row = 0
 current_font = os.path.basename(fonts[current_row])
 
-slider_steps = 100
+slider_steps = 10
 
 label_names = ['Weight', 'Width', 'Contrast', 'Serifs', 'Italic', 'Roundness']
 labels = dict()
@@ -38,31 +38,47 @@ else:
 
 app = QApplication([])
 window = QWidget()
-layout = QVBoxLayout()
 
+layout = QHBoxLayout()
+
+layout_left = QVBoxLayout()
+layout_right = QVBoxLayout()
+
+layout.addLayout(layout_left)
+layout.addLayout(layout_right)
+
+font_list = QListWidget()
 caption = QLabel()
 font_view = QLabel()
-font_list = QListWidget()
 
-btn_next = QPushButton('Next')
-btn_prev = QPushButton('Prev')
-btn_save = QPushButton('Save')
+btn_prev = QPushButton('Prev (Left Arrow Key)')
+btn_next = QPushButton('Next (Right Arrow Key)')
+btn_save = QPushButton('Save (Return)')
 
 slider_captions = [QLabel() for _ in range(len(label_names))]
 sliders = [QSlider(Qt.Horizontal) for _ in range(len(label_names))]
 
-layout.addWidget(caption)
-layout.addWidget(font_view)
-layout.addWidget(font_list)
+layout_left.addWidget(font_list)
 
-layout.addWidget(btn_next)
-layout.addWidget(btn_prev)
-layout.addWidget(btn_save)
+layout_right.addWidget(caption)
+layout_right.addWidget(font_view)
+
+layout_sliders = QGridLayout()
 
 for i in range(len(label_names)):
     slider_captions[i].setText(label_names[i])
-    layout.addWidget(slider_captions[i])
-    layout.addWidget(sliders[i])
+    layout_sliders.addWidget(slider_captions[i], i, 0)
+    layout_sliders.addWidget(sliders[i], i, 1)
+
+layout_right.addLayout(layout_sliders)
+
+layout_btns = QHBoxLayout()
+
+layout_btns.addWidget(btn_prev)
+layout_btns.addWidget(btn_next)
+layout_btns.addWidget(btn_save)
+
+layout_right.addLayout(layout_btns)
 
 def next_font():
     global current_row
@@ -103,7 +119,7 @@ def slider_changed(i):
     update_caption()
 
 def update_caption():
-    caption.setText(f'{current_row+1}/{len(fonts)} fonts. Current font: {current_font}. Labels: {labels[current_font]}')
+    caption.setText(f'Font {current_row+1} of {len(fonts)}. Current font: {current_font}. Labels: {labels[current_font]}')
 
 def save_labels():
     with open(font_dir + label_file, 'w') as f:
@@ -117,6 +133,10 @@ font_list.itemActivated.connect(select_font)
 btn_next.clicked.connect(next_font)
 btn_prev.clicked.connect(prev_font)
 btn_save.clicked.connect(save_labels)
+
+btn_next.setShortcut(QKeySequence('Right'))
+btn_prev.setShortcut(QKeySequence('Left'))
+btn_save.setShortcut(QKeySequence('Return'))
 
 for i in range(len(sliders)):
     sliders[i].setMinimum(-slider_steps)
