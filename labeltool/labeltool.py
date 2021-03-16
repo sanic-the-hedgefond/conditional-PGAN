@@ -6,25 +6,28 @@ from PIL import ImageFont, ImageDraw, Image, ImageQt
 from glob import glob
 import os
 import yaml
+from functools import partial
 
 font_dir = 'C:/Users/Schnee/Datasets/Fonts01CleanUp/'
 font_types = ['*.otf', '*.ttf']
+
 fonts = []
 for type in font_types:
     fonts.extend(glob(font_dir + type))
 
-label_file = 'labels.yaml'
+label_file = '00_labels.yaml'
 current_row = 0
-current_font = fonts[0]
+current_font = os.path.basename(fonts[current_row])
 
 slider_steps = 100
 
+label_names = ['Weight', 'Width', 'Contrast', 'Serifs', 'Italic', 'Roundness']
 labels = dict()
 
 if not os.path.exists(font_dir + label_file):
     for font in fonts:
         filename = os.path.basename(font)
-        labels[filename] = [0.0, 0.0]
+        labels[filename] = [0.0] * len(label_names)
 
     with open(font_dir + label_file, 'w') as f:
         yaml.dump(labels, f)
@@ -45,7 +48,8 @@ btn_next = QPushButton('Next')
 btn_prev = QPushButton('Prev')
 btn_save = QPushButton('Save')
 
-slider_1 = QSlider(Qt.Horizontal)
+slider_captions = [QLabel() for _ in range(len(label_names))]
+sliders = [QSlider(Qt.Horizontal) for _ in range(len(label_names))]
 
 layout.addWidget(caption)
 layout.addWidget(font_view)
@@ -55,32 +59,31 @@ layout.addWidget(btn_next)
 layout.addWidget(btn_prev)
 layout.addWidget(btn_save)
 
-layout.addWidget(slider_1)
+for i in range(len(label_names)):
+    slider_captions[i].setText(label_names[i])
+    layout.addWidget(slider_captions[i])
+    layout.addWidget(sliders[i])
 
 def next_font():
     global current_row
     current_row = (current_row + 1) % (len(fonts))
-    next_font = font_list.item(current_row)
-    set_sample_text(font_dir + next_font.text())
-    #caption.setText(f'{len(fonts)} fonts. Current font: {next_font.text()}')
+    font = font_list.item(current_row)
+    set_sample_text(font_dir + font.text())
 
 def prev_font():
     global current_row
     current_row = (current_row - 1) % (len(fonts))
-    next_font = font_list.item(current_row)
-    set_sample_text(font_dir + next_font.text())
-    #caption.setText(f'{len(fonts)} fonts. Current font: {next_font.text()}')
+    font = font_list.item(current_row)
+    set_sample_text(font_dir + font.text())
 
 def select_font(font):
     global current_row
     current_row = font_list.currentRow()
     set_sample_text(font_dir + font.text())
-    #caption.setText(f'{len(fonts)} fonts. Current font: {font.text()}')
 
 def set_sample_text(font, sample_text="The quick brown fox jumps over the lazy dog", im_size=(1000,100), txt_size=35):
     global current_font
     current_font = os.path.basename(font)
-    #caption.setText(f'{current_row+1}/{len(fonts)} fonts. Current font: {current_font}. Labels: {labels[current_font]}')
     update_caption()
     font = ImageFont.truetype(font, txt_size)
     im = Image.new('L', (im_size[0], im_size[1]), 0)
@@ -92,14 +95,15 @@ def set_sample_text(font, sample_text="The quick brown fox jumps over the lazy d
     q_pix = QPixmap.fromImage(q_img)
     font_view.setPixmap(q_pix)
 
-    slider_1.setValue(labels[current_font][0])
+    for i, slider in enumerate(sliders):
+        slider.setValue(labels[current_font][i] * slider_steps)
 
-def slider1_changed():
-    labels[current_font][0] = slider_1.value()
+def slider_changed(i):
+    labels[current_font][i] = sliders[i].value() / slider_steps
     update_caption()
 
 def update_caption():
-    caption.setText(f'{current_row+1}/{len(fonts)} fonts. Current font: {current_font}. Labels: {labels[current_font][0] / slider_steps}')
+    caption.setText(f'{current_row+1}/{len(fonts)} fonts. Current font: {current_font}. Labels: {labels[current_font]}')
 
 def save_labels():
     with open(font_dir + label_file, 'w') as f:
@@ -114,9 +118,10 @@ btn_next.clicked.connect(next_font)
 btn_prev.clicked.connect(prev_font)
 btn_save.clicked.connect(save_labels)
 
-slider_1.setMinimum(-100)
-slider_1.setMaximum(100)
-slider_1.valueChanged.connect(slider1_changed)
+for i in range(len(sliders)):
+    sliders[i].setMinimum(-slider_steps)
+    sliders[i].setMaximum(slider_steps)
+    sliders[i].valueChanged.connect(partial(slider_changed, i))
 
 select_font(font_list.item(current_row))
 
