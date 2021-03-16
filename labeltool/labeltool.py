@@ -19,10 +19,12 @@ label_file = '00_labels.yaml'
 current_row = 0
 current_font = os.path.basename(fonts[current_row])
 
-slider_steps = 10
+slider_steps = 20
 
 label_names = ['Weight', 'Width', 'Contrast', 'Serifs', 'Italic', 'Roundness']
 labels = dict()
+
+label_cache = [0.0] * len(label_names)
 
 if not os.path.exists(font_dir + label_file):
     for font in fonts:
@@ -53,6 +55,8 @@ font_view = QLabel()
 
 btn_prev = QPushButton('Prev (Left Arrow Key)')
 btn_next = QPushButton('Next (Right Arrow Key)')
+btn_copy = QPushButton('Copy Labels (Strg+C)')
+btn_paste = QPushButton('Paste Labels (Strg+V))')
 btn_save = QPushButton('Save (Return)')
 
 slider_captions = [QLabel() for _ in range(len(label_names))]
@@ -76,6 +80,8 @@ layout_btns = QHBoxLayout()
 
 layout_btns.addWidget(btn_prev)
 layout_btns.addWidget(btn_next)
+layout_btns.addWidget(btn_copy)
+layout_btns.addWidget(btn_paste)
 layout_btns.addWidget(btn_save)
 
 layout_right.addLayout(layout_btns)
@@ -97,15 +103,15 @@ def select_font(font):
     current_row = font_list.currentRow()
     set_sample_text(font_dir + font.text())
 
-def set_sample_text(font, sample_text="The quick brown fox jumps over the lazy dog", im_size=(1000,100), txt_size=35):
+def set_sample_text(font, sample_text="ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz .,-!?/", im_size=(1200,200), txt_size=55):
     global current_font
     current_font = os.path.basename(font)
     update_caption()
     font = ImageFont.truetype(font, txt_size)
     im = Image.new('L', (im_size[0], im_size[1]), 0)
     draw = ImageDraw.Draw(im)
-    w, h = draw.textsize(sample_text, font=font)
-    draw.text((im_size[0]/2-w/2, im_size[1]/2-h/2), sample_text, font=font, fill='#FFF')
+    _, h = draw.textsize(sample_text, font=font)
+    draw.text((20, im_size[1]/2-h/2), sample_text, font=font, fill='#FFF')
 
     q_img = ImageQt.ImageQt(im)
     q_pix = QPixmap.fromImage(q_img)
@@ -125,17 +131,34 @@ def save_labels():
     with open(font_dir + label_file, 'w') as f:
         yaml.dump(labels, f)
 
+def copy_label():
+    global label_cache
+    label_cache = labels[current_font]
+
+def paste_label():
+    global labels
+    global label_cache
+    labels[current_font] = label_cache
+
+    for i, slider in enumerate(sliders):
+        slider.setValue(labels[current_font][i] * slider_steps)
+
 for font in fonts:
     filename = os.path.basename(font)
     font_list.addItem(filename)
 
 font_list.itemActivated.connect(select_font)
+
 btn_next.clicked.connect(next_font)
 btn_prev.clicked.connect(prev_font)
+btn_copy.clicked.connect(copy_label)
+btn_paste.clicked.connect(paste_label)
 btn_save.clicked.connect(save_labels)
 
 btn_next.setShortcut(QKeySequence('Right'))
 btn_prev.setShortcut(QKeySequence('Left'))
+btn_copy.setShortcut(QKeySequence('Ctrl+C'))
+btn_paste.setShortcut(QKeySequence('Ctrl+V'))
 btn_save.setShortcut(QKeySequence('Return'))
 
 for i in range(len(sliders)):
