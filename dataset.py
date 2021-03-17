@@ -52,7 +52,6 @@ class DatasetGenerator:
 
                 im = np.array(im)/255.0*2.0 - 1.0
                 im = np.expand_dims(im, axis=-1)
-
                 
                 #create one-hot annotation vector
                 label = np.zeros((len(self.chars)))

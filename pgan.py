@@ -451,13 +451,6 @@ class PGAN(Model):
         # Train the generator
         # Get the latent vector
         random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))#, seed=self.random_seed + self.d_steps)
-
-        #onehot = [0,0]
-        #onehot[self.character_class] = 1
-        #onehot = tf.convert_to_tensor([onehot], dtype=tf.float32)
-        #onehot = tf.repeat(onehot, batch_size, axis=0)
-
-        #random_latent_vectors = tf.concat([random_latent_vectors, onehot], axis=-1)
         
         with tf.GradientTape() as tape:
             # Generate fake images using the generator

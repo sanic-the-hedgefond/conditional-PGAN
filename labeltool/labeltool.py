@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QListWidget, QLabel, QSlider, QPushButton, QShortcut
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QListWidget, QLabel, QSlider, QPushButton
 from PyQt5.QtGui import QPixmap, QKeySequence
 from PyQt5.QtCore import Qt
 
@@ -45,9 +45,9 @@ class Labeltool(QWidget):
             with open(self.font_dir + label_file) as f:
                 self.labels = yaml.load(f, Loader=yaml.FullLoader)
 
-        self.initUI()
+        self.init_UI()
 
-    def initUI(self):
+    def init_UI(self):
         self.layout = QHBoxLayout()
 
         self.layout_left = QVBoxLayout()
