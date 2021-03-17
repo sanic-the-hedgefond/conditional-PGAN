@@ -36,7 +36,7 @@ class Labeltool(QWidget):
         if not os.path.exists(self.font_dir + label_file):
             for font in self.fonts:
                 filename = os.path.basename(font)
-                labels[filename] = [0.0] * len(self.label_names)
+                self.labels[filename] = [0.0] * len(self.label_names)
 
             with open(self.font_dir + label_file, 'w') as f:
                 yaml.dump(self.labels, f)

@@ -50,9 +50,6 @@ def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
 
   random_latent_vectors = tf.repeat(random_latent_vectors, num_chars, axis=0)
 
-  #labels = [i % num_chars for i in range(num_img)]
-  #labels = np.asarray(labels)
-
   labels = np.zeros((num_img, num_chars))
   for i in range(num_img):
     labels[i][i % num_chars] = 1

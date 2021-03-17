@@ -4,7 +4,6 @@ from glob import glob
 import os
 import numpy as np
 import itertools
-#import re
 
 class DatasetGenerator:
     def __init__(self, im_size=4, num_chars=1, step=1, batch_size=16, font_dir='fonts/'):
@@ -22,7 +21,7 @@ class DatasetGenerator:
 
     def set_fonts(self):
         fonts = glob(self.font_dir + '*.*', recursive=True)
-        self.fonts =  fonts[::self.step]
+        self.fonts = fonts[::self.step]
 
     def get_num_fonts(self):
         return len(self.fonts)
@@ -58,37 +57,6 @@ class DatasetGenerator:
                 #create one-hot annotation vector
                 label = np.zeros((len(self.chars)))
                 label[i] = 1
-
-                '''
-                if re.search('thin', font_file, re.IGNORECASE):
-                    label[-3] = 0
-                elif re.search(('light'), font_file, re.IGNORECASE):
-                    label[-3] = 0.2
-                elif re.search(('bold'), font_file, re.IGNORECASE):
-                    label[-3] = 0.6
-                elif re.search(('heavy'), font_file, re.IGNORECASE):
-                    label[-3] = 0.8
-                elif re.search(('black'), font_file, re.IGNORECASE):
-                    label[-3] = 1
-                else:
-                    label[-3] = 0.4
-
-                # identify width
-                if re.search('cond', font_file, re.IGNORECASE):
-                    label[-2] = 0
-                elif re.search('extended', font_file, re.IGNORECASE):
-                    label[-2] = 1
-                else:
-                    label[-2] = 0.5
-
-                # identify italic
-                if re.search('italic', font_file, re.IGNORECASE) or re.search('oblique', font_file, re.IGNORECASE):
-                    label[-1] = 1
-                else:
-                    label[-1] = 0
-
-                label = i
-                '''
 
                 yield (im, label)
 
