@@ -4,12 +4,15 @@ from PIL import Image
 import os
 from datetime import datetime
 import yaml
+from shutil import copyfile
 
 from pcgan import PCGAN
 from dataset import DatasetGenerator
 
 ### LOAD CONFIG ###
-with open('config.yaml') as f:
+config_file = 'config.yaml'
+
+with open(config_file) as f:
   config = yaml.load(f, Loader=yaml.FullLoader)
 
 latent_dim = config['latent_dim']
@@ -34,6 +37,8 @@ training_dir = f'training/{datetime.now().strftime("%Y-%m-%d-%H%M%S")}/'
 if not os.path.exists(f'{training_dir}images/models/'):
   os.makedirs(f'{training_dir}images/models/')
   os.makedirs(f'{training_dir}models/')
+
+copyfile(config_file, f'{training_dir}{config_file}')
 
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.0, beta_2=0.99, epsilon=1e-8)
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.0, beta_2=0.99, epsilon=1e-8)
