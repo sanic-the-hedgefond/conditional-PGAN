@@ -15,10 +15,13 @@ class Viztool(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.modeldir = 'training/2021-03-12-145730/pgan_stage_2_stabilize/'
+        #self.modeldir = 'training/2021-03-19-102857/models/pcgan_stage_5_fade_in/'
+        self.modeldir = 'C:/Users/Schnee/Desktop/pcgan_stage_4_fade_in/'
         self.num_img = 26
-        self.num_chars = 26
+        self.num_chars = 52
         self.latent_dim = 50
+
+        self.label_names = ['Weight', 'Width', 'Contrast', 'Serifs', 'Italic', 'Roundness']
 
         self.slider_steps = 50
         self.slider_per_row = 25
@@ -26,10 +29,11 @@ class Viztool(QWidget):
         self.model = tf.saved_model.load(self.modeldir)
 
         self.input_latent = np.zeros(shape=(1, self.latent_dim), dtype=np.float32)
-        self.input_labels = np.zeros((self.num_img, self.num_chars))
+        self.input_labels = np.zeros((self.num_img, self.num_chars + len(self.label_names)))
         for i in range(self.num_img):
             self.input_labels[i][i % self.num_chars] = 1
-        self.input_labels = tf.convert_to_tensor(self.input_labels, dtype=tf.float32)
+        
+        self.input_style = np.zeros(len(self.label_names))
 
         self.init_UI()
 
@@ -41,9 +45,11 @@ class Viztool(QWidget):
 
         self.layout_output = QGridLayout()
         self.layout_latent_slider = QGridLayout()
+        self.layout_style_slider = QGridLayout()
 
         self.layout.addLayout(self.layout_output)
         self.layout.addLayout(self.layout_latent_slider)
+        self.layout.addLayout(self.layout_style_slider)
 
         self.output_label = QLabel()
         self.layout_output.addWidget(self.output_label)
@@ -61,6 +67,20 @@ class Viztool(QWidget):
             self.layout_latent_slider.addWidget(self.latent_slider[i], 0 + 2 * (i // self.slider_per_row), i % self.slider_per_row)
             self.layout_latent_slider.addWidget(self.latent_slider_captions[i], 1 + 2 * (i // self.slider_per_row), i % self.slider_per_row)
 
+        self.style_slider_captions = [QLabel() for _ in range(len(self.label_names))]
+        self.style_slider = [QSlider(Qt.Horizontal) for _ in range(len(self.label_names))]
+
+        for i in range(len(self.label_names)):
+            self.style_slider[i].setTickPosition(QSlider.TickPosition.TicksLeft)
+            self.style_slider[i].setMinimum(-self.slider_steps)
+            self.style_slider[i].setMaximum(self.slider_steps)
+            self.style_slider[i].setMinimumHeight(200)
+            self.style_slider[i].valueChanged.connect(partial(self.style_slider_changed, i))
+            self.style_slider_captions[i].setText(f'<b>{self.label_names[i]}</b>')
+            self.layout_style_slider.addWidget(self.style_slider_captions[i], i, 0)
+            self.layout_style_slider.addWidget(self.style_slider[i], i, 1)
+
+        self.layout_btns = QHBoxLayout()
         self.layout_btns = QHBoxLayout()
 
         self.btn_random = QPushButton('Random')
@@ -110,9 +130,15 @@ class Viztool(QWidget):
         self.input_latent[0][i] = self.latent_slider[i].value() / self.slider_steps
         self.update_output(self.input_latent, self.input_labels)
 
+    def style_slider_changed(self, i):
+        self.input_labels[:,self.num_chars + i] = self.style_slider[i].value() / self.slider_steps
+        self.update_output(self.input_latent, self.input_labels)
+
     def update_output(self, input_latent, input_labels, img_width=1600):
         input_latent = tf.convert_to_tensor(input_latent, dtype=tf.float32)
         input_latent = tf.repeat(input_latent, self.num_img, axis=0)
+
+        input_labels = tf.convert_to_tensor(input_labels, dtype=tf.float32)
 
         self.output = self.model([input_latent, input_labels])
 

@@ -1,14 +1,15 @@
 latent_dim: 50
-num_chars: 26
+num_chars: 52
 num_style_labels: 6
 
-step: 4 # Reduce size of dataset by this factor
+step: 1 # Reduce size of dataset by this factor
 first_n_fonts: 300 # Prune dataset
 
-filters: [128, 128, 128, 64, 64, 64, 32, 16, 8] # Number of filters per added layer in discriminator und generator
-batch_size: [64, 32, 32, 16, 8, 4, 4, 2, 1] # Number of batches per stage
-epochs: 1
-discriminator_steps: 3
+########     4      8     16    32    64    128   256   512   1024
+filters:    [128,   128,  128,  64,   64,   64,   32,   16,   8] # Filters per added layer (in discriminator und generator)
+batch_size: [64,    32,   32,   16,   8,    4,    4,    2,    1] # Batches per stage
+epochs:     [5,     5,    5,    5,    5,    5,    5,    5,    5] # Epochs per stage
+discriminator_steps: 4
 
 font_dir: 'C:/Users/Schnee/Datasets/Fonts01CleanUp/' # Local
 #font_dir: '../Datasets/Fonts01CleanUp/' # Remote

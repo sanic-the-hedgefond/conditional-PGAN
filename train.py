@@ -102,7 +102,7 @@ def train_stage(epochs, im_size, step, batch_size, name):
       for cur_char in range(num_chars):
         batch_images, batch_labels = map(np.asarray, zip(*batch[cur_char::num_chars])) # Extract images and labels for current char from batch
         loss = pcgan.train_on_batch(x=batch_images, y=batch_labels, return_dict=True) # Train one batch
-        print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1} // Batch {cur_batch}/{num_fonts//batch_size} // Class {cur_char} // {loss}') # Logging
+        print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1} // Batch {cur_batch}/{num_fonts//batch_size} // Class {cur_char+1} // {loss}') # Logging
       pcgan.increment_random_seed()
     training_set.reset_generator()
     generate_images(name=name, postfix=f'_epoch{cur_epoch+1}')
@@ -121,7 +121,7 @@ pcgan.compile(
 )
 
 # Start training the initial generator and discriminator
-train_stage(epochs=epochs, im_size=4, step=step, batch_size=batch_size[0], name='init')
+train_stage(epochs=epochs[0], im_size=4, step=step, batch_size=batch_size[0], name='init')
 
 # Train faded-in / stabilized generators and discriminators
 for n_depth in range(1, len(batch_size)):
@@ -140,7 +140,7 @@ for n_depth in range(1, len(batch_size)):
       g_optimizer=generator_optimizer,
   )
 
-  train_stage(epochs=epochs, im_size=2**(n_depth+2), step=step, batch_size=batch_size[n_depth], name='fade_in')
+  train_stage(epochs=epochs[n_depth], im_size=2**(n_depth+2), step=step, batch_size=batch_size[n_depth], name='fade_in')
 
   # Change to stabilized generator and discriminator
   pcgan.stabilize_generator()
@@ -154,4 +154,4 @@ for n_depth in range(1, len(batch_size)):
       g_optimizer=generator_optimizer,
   )
 
-  train_stage(epochs=epochs, im_size=2**(n_depth+2), step=step, batch_size=batch_size[n_depth], name='stabilize')
+  train_stage(epochs=epochs[n_depth], im_size=2**(n_depth+2), step=step, batch_size=batch_size[n_depth], name='stabilize')
