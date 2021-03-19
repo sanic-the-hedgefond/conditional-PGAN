@@ -60,7 +60,6 @@ def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
     labels.append([0] * num_chars) 
     labels[i][i % num_chars] = 1
     if num_style_labels > 0:
-      #labels[i].extend([1.0, 1.0, 1.0, 1.0, 0.0, 1.0])
       labels[i].extend(np.random.normal(loc=0.0, scale=0.6, size=num_style_labels).tolist())
 
   samples = []
@@ -68,7 +67,6 @@ def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
     index_start = i*num_chars
     index_end = min((i+1)*num_chars, num_img)
     samples.extend(pcgan.generator([random_latent_vectors[index_start:index_end], np.asarray(labels[index_start:index_end])]))
-  #samples = pcgan.generator([random_latent_vectors, np.asarray(labels)])
   samples = (np.asarray(samples) * 0.5) + 0.5
 
   img_size = samples.shape[1]
@@ -81,9 +79,6 @@ def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
   output_img = Image.new('L', (num_img//num_rows*img_size, img_size*num_rows))
   for i in range(len(imgs)):
       output_img.paste(imgs[i], (img_size*(i%(num_img//num_rows)), (i // (num_img//num_rows)) * img_size))
-
-  #img_height = int(output_img.size[1] * img_width / output_img.size[0])
-  #output_img = output_img.resize((img_width, img_height), resample=Image.NEAREST)
 
   title = f'{training_dir}images/plot_{img_size}x{img_size}_{name}{postfix}.png'
   output_img.save(title)
