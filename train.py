@@ -13,7 +13,16 @@ from dataset import DatasetGenerator
 
 latent_dim = 50
 num_chars = 26
-step = 1 # Reduce size of dataset by this factor
+
+style_labels = True
+num_style_labels = 6
+
+num_label_dim = num_chars
+if style_labels:
+  num_label_dim += num_style_labels
+
+step = 3 # Reduce size of dataset by this factor
+first_n_fonts = 300 # Prune dataset
 batch_size = [64, 32, 32, 16, 8, 4, 4, 2, 1]
 epochs = 2
 discriminator_steps = 5
@@ -23,7 +32,7 @@ training_dir = f'training/{datetime.now().strftime("%Y-%m-%d-%H%M%S")}/'
 font_dir= 'C:/Users/Schnee/Datasets/Fonts01CleanUp/' # Local
 image_dir = 'images/'
 
-save_model = True
+save_model = False
 
 if not os.path.exists(f'{training_dir}{image_dir}models/'):
   os.makedirs(f'{training_dir}{image_dir}models/')
@@ -36,7 +45,7 @@ discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0
 # Instantiate the PGAN(PG-GAN) model.
 pgan = PGAN(
     latent_dim = latent_dim,
-    num_classes = num_chars,
+    num_classes = num_label_dim,
     d_steps = discriminator_steps,
 )
 
@@ -50,35 +59,41 @@ def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
 
   random_latent_vectors = tf.repeat(random_latent_vectors, num_chars, axis=0)
 
-  labels = np.zeros((num_img, num_chars))
+  labels = []
   for i in range(num_img):
+    labels.append([0] * num_chars) 
     labels[i][i % num_chars] = 1
+    if style_labels:
+      #labels[i].extend([1.0, 1.0, 1.0, 1.0, 0.0, 1.0])
+      labels[i].extend(np.random.normal(loc=0.0, scale=0.6, size=num_style_labels).tolist())
 
-  samples = pgan.generator([random_latent_vectors, labels])
+  samples = pgan.generator([random_latent_vectors, np.asarray(labels)])
   samples = (samples * 0.5) + 0.5
 
-  im_size = samples.shape[1]
+  img_size = samples.shape[1]
 
-  fig, axes = pyplot.subplots(shape[1], shape[0], figsize=(4*shape[0], 4*shape[1]))
-  sample_grid = np.reshape(samples[:shape[0] * shape[1]], (shape[0], shape[1], samples.shape[1], samples.shape[2], samples.shape[3]))
+  imgs = []
+  for i in range(num_img):
+      imgs.append(tf.keras.preprocessing.image.array_to_img(samples[i]))
 
-  for i in range(shape[1]):
-    for j in range(shape[0]):
-      axes[i][j].set_axis_off()
-      samples_grid_i_j = Image.fromarray((sample_grid[j][i] * 255).astype(np.uint8).squeeze(), mode="L")
-      samples_grid_i_j = samples_grid_i_j.resize((128,128), resample=Image.NEAREST)
-      axes[i][j].imshow(np.array(samples_grid_i_j), cmap='gray')
-  title = f'{training_dir}{image_dir}plot_{im_size}x{im_size}_{name}{postfix}.png'
-  pyplot.savefig(title, bbox_inches='tight')
+  num_rows = shape[1]
+  output_img = Image.new('L', (num_img//num_rows*img_size, img_size*num_rows))
+  for i in range(len(imgs)):
+      output_img.paste(imgs[i], (img_size*(i%(num_img//num_rows)), (i // (num_img//num_rows)) * img_size))
+
+  #img_height = int(output_img.size[1] * img_width / output_img.size[0])
+  #output_img = output_img.resize((img_width, img_height), resample=Image.NEAREST)
+
+  title = f'{training_dir}{image_dir}plot_{img_size}x{img_size}_{name}{postfix}.png'
+  output_img.save(title)
   print(f'\n saved {title}')
-  pyplot.close(fig)
 
 def plot_models(name):
   tf.keras.utils.plot_model(pgan.generator, to_file=f'{training_dir}{image_dir}models/generator_{pgan.n_depth}_{name}.png', show_shapes=True)
   tf.keras.utils.plot_model(pgan.discriminator, to_file=f'{training_dir}{image_dir}models/discriminator_{pgan.n_depth}_{name}.png', show_shapes=True)
 
 def train_stage(epochs, im_size, step, batch_size, name):
-  training_set = DatasetGenerator(im_size=im_size, num_chars=num_chars, step=step, batch_size=batch_size, font_dir=font_dir)
+  training_set = DatasetGenerator(im_size=im_size, num_chars=num_chars, step=step, batch_size=batch_size, font_dir=font_dir, num_fonts=first_n_fonts)
   num_fonts = training_set.get_num_fonts()
   for cur_epoch in range(epochs): # Iterate epochs
     for cur_batch, batch in enumerate(training_set.batch): # Iterate batches

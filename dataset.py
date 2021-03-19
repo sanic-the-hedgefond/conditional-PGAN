@@ -4,14 +4,17 @@ from glob import glob
 import os
 import numpy as np
 import itertools
+import yaml
 
 class DatasetGenerator:
-    def __init__(self, im_size=4, num_chars=1, step=1, batch_size=16, font_dir='fonts/'):
+    def __init__(self, im_size=4, num_chars=1, step=1, batch_size=16, font_dir='fonts/', num_fonts=0, get_style_labels=True):
         self.im_size = im_size
         self.num_chars = num_chars
         self.step = step
         self.batch_size = batch_size
         self.font_dir = font_dir
+        self.num_fonts = num_fonts
+        self.get_style_labels = get_style_labels
 
         self.set_fonts()
         self.set_chars()
@@ -20,8 +23,15 @@ class DatasetGenerator:
         self.set_batch()
 
     def set_fonts(self):
-        fonts = glob(self.font_dir + '*.*', recursive=True)
-        self.fonts = fonts[::self.step]
+        self.fonts = []
+        font_types = ['*.otf', '*.ttf']
+        for type in font_types:
+            self.fonts.extend(glob(self.font_dir + type))
+
+        if self.num_fonts != 0:
+            self.fonts = self.fonts[:self.num_fonts]
+        self.fonts = self.fonts[::self.step]
+
 
     def get_num_fonts(self):
         return len(self.fonts)
@@ -41,6 +51,11 @@ class DatasetGenerator:
         self.set_batch()
 
     def dataset_generator(self):
+        style_labels = 0
+        if self.get_style_labels:
+            with open(self.font_dir + '00_labels.yaml') as f:
+                style_labels = yaml.load(f, Loader=yaml.FullLoader)
+
         for font_file in self.fonts:
             font = ImageFont.truetype(font_file, int(self.im_size*(3.0/4.0)))
 
@@ -53,9 +68,13 @@ class DatasetGenerator:
                 im = np.array(im)/255.0*2.0 - 1.0
                 im = np.expand_dims(im, axis=-1)
                 
-                #create one-hot annotation vector
+                #create one-hot annotation vector for character classes
                 label = np.zeros((len(self.chars)))
                 label[i] = 1
+
+                #create vector for type characteristics
+                if self.get_style_labels:
+                    label = np.append(label, style_labels[os.path.basename(font_file)])
 
                 yield (im, label)
 

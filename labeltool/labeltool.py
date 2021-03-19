@@ -15,12 +15,12 @@ class Labeltool(QWidget):
     def __init__(self):
         super().__init__()
 
-        label_file = '00_labels.yaml'
-        font_types = ['*.otf', '*.ttf']
+        self.label_file = '00_labels.yaml'
+        self.font_types = ['*.otf', '*.ttf']
         self.font_dir = 'C:/Users/Schnee/Datasets/Fonts01CleanUp/'
 
         self.fonts = []
-        for type in font_types:
+        for type in self.font_types:
             self.fonts.extend(glob(self.font_dir + type))
 
         self.current_row = 0
@@ -33,16 +33,16 @@ class Labeltool(QWidget):
 
         self.label_cache = [0.0] * len(self.label_names)
 
-        if not os.path.exists(self.font_dir + label_file):
+        if not os.path.exists(self.font_dir + self.label_file):
             for font in self.fonts:
                 filename = os.path.basename(font)
                 self.labels[filename] = [0.0] * len(self.label_names)
 
-            with open(self.font_dir + label_file, 'w') as f:
+            with open(self.font_dir + self.label_file, 'w') as f:
                 yaml.dump(self.labels, f)
 
         else:
-            with open(self.font_dir + label_file) as f:
+            with open(self.font_dir + self.label_file) as f:
                 self.labels = yaml.load(f, Loader=yaml.FullLoader)
 
         self.init_UI()
@@ -162,7 +162,7 @@ class Labeltool(QWidget):
         self.caption.setText(f'<b>Font {self.current_row+1} of {len(self.fonts)}. Current font: {self.current_font}. Labels: {self.labels[self.current_font]}</b>')
 
     def save_labels(self):
-        with open(self.font_dir + label_file, 'w') as f:
+        with open(self.font_dir + self.label_file, 'w') as f:
             yaml.dump(self.labels, f)
 
     def copy_label(self):
