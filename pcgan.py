@@ -8,9 +8,6 @@ from tensorflow.keras.layers import UpSampling2D
 from tensorflow.keras.layers import Layer
 from tensorflow.keras import backend
 
-FILTERS = [128, 128, 128, 64, 64, 64, 32, 16, 8]
-
-
 # Normalizes the feature vector for the pixel(axis=-1)
 class PixelNormalization(Layer):
     def __init__(self, **kwargs):
@@ -121,23 +118,26 @@ def WeightScalingConv(x, filters, kernel_size, gain, use_pixelnorm=False, activa
     return x 
 
 # https://keras.io/examples/generative/wgan_gp/
-class PGAN(Model):
+class PCGAN(Model):
     def __init__(
         self,
         latent_dim,
         num_classes,
+        filters,
         d_steps=1,
         seed=0,
         gp_weight=10.0,
         drift_weight=0.001,
     ):
-        super(PGAN, self).__init__()
+        super(PCGAN, self).__init__()
         self.latent_dim = latent_dim
         self.num_classes = num_classes
+        self.filters = filters
         self.d_steps = d_steps
         self.random_seed = seed
         self.gp_weight = gp_weight
         self.drift_weight = drift_weight
+
         self.n_depth = 0
         self.discriminator = self.init_discriminator()
         self.discriminator_wt_fade = None
@@ -180,13 +180,13 @@ class PGAN(Model):
         concat_input = layers.Concatenate()([img_input, label])
         
         # fromRGB
-        x = WeightScalingConv(concat_input, filters=FILTERS[0], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
+        x = WeightScalingConv(concat_input, filters=self.filters[0], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
         
         # Add Minibatch end of discriminator
         x = MinibatchStdev()(x)
 
-        x = WeightScalingConv(x, filters=FILTERS[0], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
-        x = WeightScalingConv(x, filters=FILTERS[0], kernel_size=(4,4), gain=np.sqrt(2), activate='LeakyReLU', strides=(4,4))
+        x = WeightScalingConv(x, filters=self.filters[0], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
+        x = WeightScalingConv(x, filters=self.filters[0], kernel_size=(4,4), gain=np.sqrt(2), activate='LeakyReLU', strides=(4,4))
 
         x = layers.Flatten()(x)
         # Gain should be 1, cos it's a last layer 
@@ -224,10 +224,10 @@ class PGAN(Model):
 
         # 3.  Define a "fade in" block (x2) with a new "fromRGB" and two 3x3 convolutions. 
         #     Add an AveragePooling2D layer
-        x2 = WeightScalingConv(concat_input, filters=FILTERS[self.n_depth], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
+        x2 = WeightScalingConv(concat_input, filters=self.filters[self.n_depth], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
 
-        x2 = WeightScalingConv(x2, filters=FILTERS[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
-        x2 = WeightScalingConv(x2, filters=FILTERS[self.n_depth-1], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
+        x2 = WeightScalingConv(x2, filters=self.filters[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
+        x2 = WeightScalingConv(x2, filters=self.filters[self.n_depth-1], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
 
         x2 = layers.AveragePooling2D()(x2)
 
@@ -277,10 +277,10 @@ class PGAN(Model):
 
         # 3.  Define a "fade in" block (x2) with a new "fromRGB" and two 3x3 convolutions. 
         #     Add an AveragePooling2D layer
-        x2 = WeightScalingConv(concat_input, filters=FILTERS[self.n_depth], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
+        x2 = WeightScalingConv(concat_input, filters=self.filters[self.n_depth], kernel_size=(1,1), gain=np.sqrt(2), activate='LeakyReLU')
 
-        x2 = WeightScalingConv(x2, filters=FILTERS[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
-        x2 = WeightScalingConv(x2, filters=FILTERS[self.n_depth-1], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
+        x2 = WeightScalingConv(x2, filters=self.filters[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
+        x2 = WeightScalingConv(x2, filters=self.filters[self.n_depth-1], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
 
         x2 = layers.AveragePooling2D()(x2)
 
@@ -317,12 +317,12 @@ class PGAN(Model):
         concat_input = layers.Concatenate()([noise, label])
 
         x = PixelNormalization()(concat_input)
-        # Actual size(After doing reshape) is just FILTERS[0], so divide gain by 4
-        x = WeightScalingDense(x, filters=4*4*FILTERS[0], gain=np.sqrt(2)/4, activate='LeakyReLU', use_pixelnorm=True)
-        x = layers.Reshape((4, 4, FILTERS[0]))(x)
+        # Actual size(After doing reshape) is just self.filters[0], so divide gain by 4
+        x = WeightScalingDense(x, filters=4*4*self.filters[0], gain=np.sqrt(2)/4, activate='LeakyReLU', use_pixelnorm=True)
+        x = layers.Reshape((4, 4, self.filters[0]))(x)
 
-        x = WeightScalingConv(x, filters=FILTERS[0], kernel_size=(4,4), gain=np.sqrt(2), activate='LeakyReLU', use_pixelnorm=True)
-        x = WeightScalingConv(x, filters=FILTERS[0], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU', use_pixelnorm=True)
+        x = WeightScalingConv(x, filters=self.filters[0], kernel_size=(4,4), gain=np.sqrt(2), activate='LeakyReLU', use_pixelnorm=True)
+        x = WeightScalingConv(x, filters=self.filters[0], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU', use_pixelnorm=True)
 
         # Add "toRGB", the original paper uses linear as actiavation. 
         # Gain should be 1, cos it's a last layer 
@@ -348,8 +348,8 @@ class PGAN(Model):
         x1 = self.generator.layers[-1](x1) #tanh
 
         # 4. Define a "fade in" block (x2) with two 3x3 convolutions and a new "toRGB".
-        x2 = WeightScalingConv(block_end, filters=FILTERS[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU', use_pixelnorm=True)
-        x2 = WeightScalingConv(x2, filters=FILTERS[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU', use_pixelnorm=True)
+        x2 = WeightScalingConv(block_end, filters=self.filters[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU', use_pixelnorm=True)
+        x2 = WeightScalingConv(x2, filters=self.filters[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU', use_pixelnorm=True)
         
         x2 = WeightScalingConv(x2, filters=1, kernel_size=(1,1), gain=1., activate='tanh', use_pixelnorm=False)
 
@@ -372,7 +372,7 @@ class PGAN(Model):
 
 
     def compile(self, d_optimizer, g_optimizer):
-        super(PGAN, self).compile()
+        super(PCGAN, self).compile()
         self.d_optimizer = d_optimizer
         self.g_optimizer = g_optimizer
 

@@ -1,0 +1,16 @@
+latent_dim: 50
+num_chars: 26
+num_style_labels: 6
+
+step: 4 # Reduce size of dataset by this factor
+first_n_fonts: 300 # Prune dataset
+
+filters: [128, 128, 128, 64, 64, 64, 32, 16, 8] # Number of filters per added layer in discriminator und generator
+batch_size: [64, 32, 32, 16, 8, 4, 4, 2, 1] # Number of batches per stage
+epochs: 1
+discriminator_steps: 3
+
+font_dir: 'C:/Users/Schnee/Datasets/Fonts01CleanUp/' # Local
+#font_dir: '../Datasets/Fonts01CleanUp/' # Remote
+
+save_model: True # Saves model weights(discriminator/generator) + complete generator model for inference

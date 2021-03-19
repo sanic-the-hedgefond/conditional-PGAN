@@ -1,51 +1,47 @@
 import numpy as np
 import tensorflow as tf
-
-from matplotlib import pyplot
-from math import sqrt
 from PIL import Image
 import os
 from datetime import datetime
+import yaml
 
-from pgan import PGAN
-
+from pcgan import PCGAN
 from dataset import DatasetGenerator
 
-latent_dim = 50
-num_chars = 26
+### LOAD CONFIG ###
+with open('config.yaml') as f:
+  config = yaml.load(f, Loader=yaml.FullLoader)
 
-style_labels = True
-num_style_labels = 6
+latent_dim = config['latent_dim']
+num_chars = config['num_chars']
+num_style_labels = config['num_style_labels']
+step = config['step']
+first_n_fonts = config['first_n_fonts']
+batch_size = config['batch_size']
+epochs = config['epochs']
+discriminator_steps = config['discriminator_steps']
+filters = config['filters']
+font_dir = config['font_dir']
+save_model = config['save_model']
+###################
 
 num_label_dim = num_chars
-if style_labels:
+if num_style_labels > 0:
   num_label_dim += num_style_labels
 
-step = 3 # Reduce size of dataset by this factor
-first_n_fonts = 300 # Prune dataset
-batch_size = [64, 32, 32, 16, 8, 4, 4, 2, 1]
-epochs = 2
-discriminator_steps = 5
-
 training_dir = f'training/{datetime.now().strftime("%Y-%m-%d-%H%M%S")}/'
-#font_dir = '../Datasets/Fonts01CleanUp/' # Remote
-font_dir= 'C:/Users/Schnee/Datasets/Fonts01CleanUp/' # Local
-image_dir = 'images/'
 
-save_model = False
+if not os.path.exists(f'{training_dir}images/models/'):
+  os.makedirs(f'{training_dir}images/models/')
+  os.makedirs(f'{training_dir}models/')
 
-if not os.path.exists(f'{training_dir}{image_dir}models/'):
-  os.makedirs(f'{training_dir}{image_dir}models/')
-
-# Instantiate the optimizer for both networks
-# learning_rate will be equalized per each layers by the WeightScaling scheme
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.0, beta_2=0.99, epsilon=1e-8)
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.0, beta_2=0.99, epsilon=1e-8)
 
-# Instantiate the PGAN(PG-GAN) model.
-pgan = PGAN(
+pcgan = PCGAN(
     latent_dim = latent_dim,
     num_classes = num_label_dim,
+    filters = filters,
     d_steps = discriminator_steps,
 )
 
@@ -63,12 +59,17 @@ def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
   for i in range(num_img):
     labels.append([0] * num_chars) 
     labels[i][i % num_chars] = 1
-    if style_labels:
+    if num_style_labels > 0:
       #labels[i].extend([1.0, 1.0, 1.0, 1.0, 0.0, 1.0])
       labels[i].extend(np.random.normal(loc=0.0, scale=0.6, size=num_style_labels).tolist())
 
-  samples = pgan.generator([random_latent_vectors, np.asarray(labels)])
-  samples = (samples * 0.5) + 0.5
+  samples = []
+  for i in range(shape[1]):
+    index_start = i*num_chars
+    index_end = min((i+1)*num_chars, num_img)
+    samples.extend(pcgan.generator([random_latent_vectors[index_start:index_end], np.asarray(labels[index_start:index_end])]))
+  #samples = pcgan.generator([random_latent_vectors, np.asarray(labels)])
+  samples = (np.asarray(samples) * 0.5) + 0.5
 
   img_size = samples.shape[1]
 
@@ -84,36 +85,37 @@ def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
   #img_height = int(output_img.size[1] * img_width / output_img.size[0])
   #output_img = output_img.resize((img_width, img_height), resample=Image.NEAREST)
 
-  title = f'{training_dir}{image_dir}plot_{img_size}x{img_size}_{name}{postfix}.png'
+  title = f'{training_dir}images/plot_{img_size}x{img_size}_{name}{postfix}.png'
   output_img.save(title)
   print(f'\n saved {title}')
 
 def plot_models(name):
-  tf.keras.utils.plot_model(pgan.generator, to_file=f'{training_dir}{image_dir}models/generator_{pgan.n_depth}_{name}.png', show_shapes=True)
-  tf.keras.utils.plot_model(pgan.discriminator, to_file=f'{training_dir}{image_dir}models/discriminator_{pgan.n_depth}_{name}.png', show_shapes=True)
+  tf.keras.utils.plot_model(pcgan.generator, to_file=f'{training_dir}images/models/generator_{pcgan.n_depth}_{name}.png', show_shapes=True)
+  tf.keras.utils.plot_model(pcgan.discriminator, to_file=f'{training_dir}images/models/discriminator_{pcgan.n_depth}_{name}.png', show_shapes=True)
 
 def train_stage(epochs, im_size, step, batch_size, name):
   training_set = DatasetGenerator(im_size=im_size, num_chars=num_chars, step=step, batch_size=batch_size, font_dir=font_dir, num_fonts=first_n_fonts)
   num_fonts = training_set.get_num_fonts()
   for cur_epoch in range(epochs): # Iterate epochs
     for cur_batch, batch in enumerate(training_set.batch): # Iterate batches
-      pgan.set_alpha((cur_batch)/(num_fonts//batch_size)/epochs + (cur_epoch)/epochs) # Set alpha for fade in layers (fade from 0 to 1 during whole stage)
+      pcgan.set_alpha((cur_batch)/(num_fonts//batch_size)/epochs + (cur_epoch)/epochs) # Set alpha for fade in layers (fade from 0 to 1 during whole stage)
       for cur_char in range(num_chars):
         batch_images, batch_labels = map(np.asarray, zip(*batch[cur_char::num_chars])) # Extract images and labels for current char from batch
-        loss = pgan.train_on_batch(x=batch_images, y=batch_labels, return_dict=True) # Train one batch
+        loss = pcgan.train_on_batch(x=batch_images, y=batch_labels, return_dict=True) # Train one batch
         print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1} // Batch {cur_batch}/{num_fonts//batch_size} // Class {cur_char} // {loss}') # Logging
-      pgan.increment_random_seed()
+      pcgan.increment_random_seed()
     training_set.reset_generator()
     generate_images(name=name, postfix=f'_epoch{cur_epoch+1}')
     generate_images(name=name, postfix=f'_epoch{cur_epoch+1}', seed=707)
   generate_images(shape=(num_chars, 8), name=name, postfix='_final')
   generate_images(shape=(num_chars, 8), name=name, postfix='_final', seed=707)
   if save_model:
-    pgan.generator.save(f'{training_dir}pgan_stage_{pgan.n_depth}_{name}')
+    pcgan.generator.save(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
+    pcgan.save_weights(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
 
 plot_models('init')
 
-pgan.compile(
+pcgan.compile(
     d_optimizer=discriminator_optimizer,
     g_optimizer=generator_optimizer,
 )
@@ -124,16 +126,16 @@ train_stage(epochs=epochs, im_size=4, step=step, batch_size=batch_size[0], name=
 # Train faded-in / stabilized generators and discriminators
 for n_depth in range(1, len(batch_size)):
   # Set current level(depth)
-  pgan.n_depth = n_depth
+  pcgan.n_depth = n_depth
 
   # Put fade in generator and discriminator
-  pgan.fade_in_generator()
-  pgan.fade_in_discriminator_new_embedding()
+  pcgan.fade_in_generator()
+  pcgan.fade_in_discriminator_new_embedding()
 
   # Draw fade in generator and discriminator
   plot_models('fade_in')
 
-  pgan.compile(
+  pcgan.compile(
       d_optimizer=discriminator_optimizer,
       g_optimizer=generator_optimizer,
   )
@@ -141,13 +143,13 @@ for n_depth in range(1, len(batch_size)):
   train_stage(epochs=epochs, im_size=2**(n_depth+2), step=step, batch_size=batch_size[n_depth], name='fade_in')
 
   # Change to stabilized generator and discriminator
-  pgan.stabilize_generator()
-  pgan.stabilize_discriminator()
+  pcgan.stabilize_generator()
+  pcgan.stabilize_discriminator()
 
   # Draw stabilized generator and discriminator
   plot_models('stabilize')
 
-  pgan.compile(
+  pcgan.compile(
       d_optimizer=discriminator_optimizer,
       g_optimizer=generator_optimizer,
   )
