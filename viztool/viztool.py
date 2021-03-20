@@ -15,9 +15,9 @@ class Viztool(QWidget):
     def __init__(self):
         super().__init__()
 
-        #self.modeldir = 'training/2021-03-19-102857/models/pcgan_stage_5_fade_in/'
-        self.modeldir = 'C:/Users/Schnee/Desktop/pcgan_stage_4_fade_in/'
-        self.num_img = 26
+        #self.modeldir = 'training/2021-03-19-102857/models/pcgan_stage_5_stabilize/'
+        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-03-19-190410/models/pcgan_stage_5_stabilize/'
+        self.num_img = 52
         self.num_chars = 52
         self.latent_dim = 50
 
@@ -25,6 +25,8 @@ class Viztool(QWidget):
 
         self.slider_steps = 50
         self.slider_per_row = 25
+        
+        self.num_rows_chars = 4
 
         self.model = tf.saved_model.load(self.modeldir)
 
@@ -36,6 +38,8 @@ class Viztool(QWidget):
         self.input_style = np.zeros(len(self.label_names))
 
         self.init_UI()
+
+        self.randomize_latent()
 
         self.update_output(self.input_latent, self.input_labels)
 
@@ -59,8 +63,8 @@ class Viztool(QWidget):
 
         for i in range(self.latent_dim):
             self.latent_slider[i].setTickPosition(QSlider.TickPosition.TicksLeft)
-            self.latent_slider[i].setMinimum(-self.slider_steps)
-            self.latent_slider[i].setMaximum(self.slider_steps)
+            self.latent_slider[i].setMinimum(-self.slider_steps*2)
+            self.latent_slider[i].setMaximum(self.slider_steps*2)
             self.latent_slider[i].setMinimumHeight(200)
             self.latent_slider[i].valueChanged.connect(partial(self.slider_changed, i))
             self.latent_slider_captions[i].setText(f'<b>{i+1}</b>')
@@ -74,7 +78,6 @@ class Viztool(QWidget):
             self.style_slider[i].setTickPosition(QSlider.TickPosition.TicksLeft)
             self.style_slider[i].setMinimum(-self.slider_steps)
             self.style_slider[i].setMaximum(self.slider_steps)
-            self.style_slider[i].setMinimumHeight(200)
             self.style_slider[i].valueChanged.connect(partial(self.style_slider_changed, i))
             self.style_slider_captions[i].setText(f'<b>{self.label_names[i]}</b>')
             self.layout_style_slider.addWidget(self.style_slider_captions[i], i, 0)
@@ -119,7 +122,7 @@ class Viztool(QWidget):
                 print("Wrong directory")
 
     def randomize_latent(self):
-        self.input_latent = np.random.normal(0, 0.5, size=(1, self.latent_dim))
+        self.input_latent = np.random.normal(0, 1, size=(1, self.latent_dim))
 
         for i in range(self.latent_dim):
             self.latent_slider[i].setValue(self.input_latent[0][i] * self.slider_steps)
@@ -140,18 +143,23 @@ class Viztool(QWidget):
 
         input_labels = tf.convert_to_tensor(input_labels, dtype=tf.float32)
 
-        self.output = self.model([input_latent, input_labels])
+        img_per_batch = 13
+        self.output = []
+        for i in range(self.num_img // img_per_batch):
+            index_start = i * img_per_batch
+            index_end = min((i+1) * img_per_batch, self.num_img)
+            self.output.extend(self.model([input_latent[index_start:index_end], input_labels[index_start:index_end]]))
 
+        self.output = np.asarray(self.output)
         self.img_size = self.output.shape[1]
 
         imgs = []
         for i in range(self.output.shape[0]):
             imgs.append(tf.keras.preprocessing.image.array_to_img(self.output[i]))
 
-        num_rows = 2
-        self.output_img = Image.new('L', (self.num_img//num_rows*self.img_size, self.img_size*num_rows))
+        self.output_img = Image.new('L', (self.num_img//self.num_rows_chars*self.img_size, self.img_size*self.num_rows_chars))
         for i in range(len(imgs)):
-            self.output_img.paste(imgs[i], (self.img_size*(i%(self.num_img//num_rows)), (i // (self.num_img//num_rows)) * self.img_size))
+            self.output_img.paste(imgs[i], (self.img_size*(i%(self.num_img//self.num_rows_chars)), (i // (self.num_img//self.num_rows_chars)) * self.img_size))
 
         img_height = int(self.output_img.size[1] * img_width / self.output_img.size[0])
 

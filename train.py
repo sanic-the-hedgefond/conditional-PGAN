@@ -65,7 +65,7 @@ def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
     labels.append([0] * num_chars) 
     labels[i][i % num_chars] = 1
     if num_style_labels > 0:
-      labels[i].extend(np.random.normal(loc=0.0, scale=0.6, size=num_style_labels).tolist())
+      labels[i].extend(np.random.normal(loc=0.0, scale=0.2, size=num_style_labels).tolist())
 
   samples = []
   for i in range(shape[1]):
@@ -94,7 +94,7 @@ def plot_models(name):
   tf.keras.utils.plot_model(pcgan.discriminator, to_file=f'{training_dir}images/models/discriminator_{pcgan.n_depth}_{name}.png', show_shapes=True)
 
 def train_stage(epochs, im_size, step, batch_size, name):
-  training_set = DatasetGenerator(im_size=im_size, num_chars=num_chars, step=step, batch_size=batch_size, font_dir=font_dir, num_fonts=first_n_fonts)
+  training_set = DatasetGenerator(im_size=im_size, num_chars=num_chars, step=step, batch_size=batch_size, font_dir=font_dir, num_fonts=first_n_fonts, get_style_labels=(num_style_labels!=0))
   num_fonts = training_set.get_num_fonts()
   for cur_epoch in range(epochs): # Iterate epochs
     for cur_batch, batch in enumerate(training_set.batch): # Iterate batches
