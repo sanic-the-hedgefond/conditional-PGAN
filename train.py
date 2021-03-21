@@ -1,6 +1,8 @@
 import numpy as np
 import tensorflow as tf
 from PIL import Image
+import cv2
+import matplotlib.pyplot as plt
 import os
 from datetime import datetime
 import yaml
@@ -76,18 +78,29 @@ def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
 
   img_size = samples.shape[1]
 
+  '''
   imgs = []
   for i in range(num_img):
       imgs.append(tf.keras.preprocessing.image.array_to_img(samples[i]))
+  '''
 
   num_rows = shape[1]
+
+  imgs_alphabet  = []
+  for i in range(num_rows):
+    imgs_alphabet.append(cv2.hconcat(samples[i*num_chars:(i+1)*num_chars]))
+  img_alphabets = cv2.vconcat(imgs_alphabet)
+  title = f'{training_dir}images/plot_{img_size}x{img_size}_{name}{postfix}.png'
+  plt.imsave(title, img_alphabets, cmap=plt.cm.gray)
+  print(f'\n saved {title}')
+
+  '''
   output_img = Image.new('L', (num_img//num_rows*img_size, img_size*num_rows))
   for i in range(len(imgs)):
       output_img.paste(imgs[i], (img_size*(i%(num_img//num_rows)), (i // (num_img//num_rows)) * img_size))
 
-  title = f'{training_dir}images/plot_{img_size}x{img_size}_{name}{postfix}.png'
   output_img.save(title)
-  print(f'\n saved {title}')
+  '''
 
 def plot_models(name):
   tf.keras.utils.plot_model(pcgan.generator, to_file=f'{training_dir}images/models/generator_{pcgan.n_depth}_{name}.png', show_shapes=True)

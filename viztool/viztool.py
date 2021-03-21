@@ -4,10 +4,12 @@ from PyQt5.QtCore import Qt
 
 import numpy as np
 import tensorflow as tf
+
 from PIL import Image, ImageQt
+
+import os
 import sys
 from functools import partial
-import os
 from datetime import datetime
 
 class Viztool(QWidget):
@@ -16,7 +18,7 @@ class Viztool(QWidget):
         super().__init__()
 
         #self.modeldir = 'training/2021-03-19-102857/models/pcgan_stage_5_stabilize/'
-        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-03-19-190410/models/pcgan_stage_5_stabilize/'
+        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-03-19-190410/models/pcgan_stage_3_stabilize/'
         self.num_img = 52
         self.num_chars = 52
         self.latent_dim = 50
@@ -29,6 +31,8 @@ class Viztool(QWidget):
         self.num_rows_chars = 4
 
         self.model = tf.saved_model.load(self.modeldir)
+
+        self.update_output_flag = True
 
         self.input_latent = np.zeros(shape=(1, self.latent_dim), dtype=np.float32)
         self.input_labels = np.zeros((self.num_img, self.num_chars + len(self.label_names)))
@@ -123,15 +127,18 @@ class Viztool(QWidget):
 
     def randomize_latent(self):
         self.input_latent = np.random.normal(0, 1, size=(1, self.latent_dim))
+        self.update_output_flag = False
 
         for i in range(self.latent_dim):
             self.latent_slider[i].setValue(self.input_latent[0][i] * self.slider_steps)
 
+        self.update_output_flag = True
         self.update_output(self.input_latent, self.input_labels)
 
     def slider_changed(self, i):
         self.input_latent[0][i] = self.latent_slider[i].value() / self.slider_steps
-        self.update_output(self.input_latent, self.input_labels)
+        if self.update_output_flag:
+            self.update_output(self.input_latent, self.input_labels)
 
     def style_slider_changed(self, i):
         self.input_labels[:,self.num_chars + i] = self.style_slider[i].value() / self.slider_steps
@@ -150,7 +157,7 @@ class Viztool(QWidget):
             index_end = min((i+1) * img_per_batch, self.num_img)
             self.output.extend(self.model([input_latent[index_start:index_end], input_labels[index_start:index_end]]))
 
-        self.output = np.asarray(self.output)
+        self.output = (np.asarray(self.output) * 0.5) + 0.5
         self.img_size = self.output.shape[1]
 
         imgs = []
@@ -165,8 +172,7 @@ class Viztool(QWidget):
 
         self.output_img = self.output_img.resize((img_width, img_height), resample=Image.NEAREST)
 
-        q_img = ImageQt.ImageQt(self.output_img)
-        q_pix = QPixmap.fromImage(q_img)
+        q_pix = QPixmap.fromImage(ImageQt.ImageQt(self.output_img))
         self.output_label.setPixmap(q_pix)
 
 def main():
