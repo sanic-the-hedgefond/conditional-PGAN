@@ -52,7 +52,7 @@ pcgan = PCGAN(
     d_steps = discriminator_steps,
 )
 
-def generate_images(shape = (num_chars, 4), name='init', postfix='', seed=None):
+def generate_images(shape = (num_chars, 2), name='init', postfix='', seed=None):
   num_img = shape[0] * shape[1]
 
   random_latent_vectors = tf.random.normal(shape=[int(num_img/num_chars), latent_dim])
@@ -111,17 +111,17 @@ def train_stage(epochs, im_size, step, batch_size, name):
   num_fonts = training_set.get_num_fonts()
   for cur_epoch in range(epochs): # Iterate epochs
     for cur_batch, batch in enumerate(training_set.batch): # Iterate batches
-      pcgan.set_alpha((cur_batch)/(num_fonts//batch_size)/epochs + (cur_epoch)/epochs) # Set alpha for fade in layers (fade from 0 to 1 during whole stage)
+      pcgan.set_alpha((cur_batch)/(num_fonts//batch_size+1)/epochs + (cur_epoch)/epochs) # Set alpha for fade in layers (fade from 0 to 1 during whole stage)
       for cur_char in range(num_chars):
         batch_images, batch_labels = map(np.asarray, zip(*batch[cur_char::num_chars])) # Extract images and labels for current char from batch
         loss = pcgan.train_on_batch(x=batch_images, y=batch_labels, return_dict=True) # Train one batch
-        print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1} // Batch {cur_batch}/{num_fonts//batch_size} // Class {cur_char+1} // {loss}') # Logging
+        print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1} // Batch {cur_batch+1}/{num_fonts//batch_size+1} // Class {cur_char+1} // {loss}') # Logging
       pcgan.increment_random_seed()
     training_set.reset_generator()
-    generate_images(name=name, postfix=f'_epoch{cur_epoch+1}')
-    generate_images(name=name, postfix=f'_epoch{cur_epoch+1}', seed=707)
-  generate_images(shape=(num_chars, 8), name=name, postfix='_final')
-  generate_images(shape=(num_chars, 8), name=name, postfix='_final', seed=707)
+    #generate_images(name=name, postfix=f'_epoch{cur_epoch+1}')
+    #generate_images(name=name, postfix=f'_epoch{cur_epoch+1}', seed=707)
+  #generate_images(shape=(num_chars, 4), name=name, postfix='_final')
+  #generate_images(shape=(num_chars, 4), name=name, postfix='_final', seed=707)
   if save_model:
     pcgan.generator.save(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
     pcgan.save_weights(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')

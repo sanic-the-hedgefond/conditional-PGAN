@@ -18,10 +18,10 @@ class Viztool(QWidget):
         super().__init__()
 
         #self.modeldir = 'training/2021-03-19-102857/models/pcgan_stage_5_stabilize/'
-        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-03-19-190410/models/pcgan_stage_3_stabilize/'
+        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2012-03-21-135259/pcgan_stage_5_stabilize/'
         self.num_img = 52
         self.num_chars = 52
-        self.latent_dim = 50
+        self.latent_dim = 20
 
         self.label_names = ['Weight', 'Width', 'Contrast', 'Serifs', 'Italic', 'Roundness']
 
@@ -126,7 +126,7 @@ class Viztool(QWidget):
                 print("Wrong directory")
 
     def randomize_latent(self):
-        self.input_latent = np.random.normal(0, 1, size=(1, self.latent_dim))
+        self.input_latent = np.random.normal(0, 0.5, size=(1, self.latent_dim))
         self.update_output_flag = False
 
         for i in range(self.latent_dim):
