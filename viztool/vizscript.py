@@ -4,15 +4,18 @@ from PIL import Image
 from string import ascii_uppercase, ascii_lowercase
 import os
 
-text = 'DEEP'
-save_dir = 'C:/Users/Schnee/Desktop/MASTER/Viz/20210323_05/'
+text = 'ExploringTypefaceswithGenerativeAdversarialNetworks'
+save_dir = 'C:/Users/Schnee/Desktop/MASTER/Viz/20210402_07/'
 
-modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2012-03-21-135259/pcgan_stage_6_fade_in/'
+#modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2012-03-21-135259/pcgan_stage_6_fade_in/'
+modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-01-115036/models/pcgan_stage_4_stabilize/'
 model = tf.saved_model.load(modeldir)
-latent_dim = 20
-chars = [c for c in ascii_uppercase + ascii_lowercase]
+latent_dim = 50
 
-def get_random_latent(sd=0.9):
+chars = [c for c in ascii_uppercase + ascii_lowercase] # 26 + 26
+chars += '1234567890.,(!?)+-*/=' # + 21 = 73
+
+def get_random_latent(sd=0.6):
     latent =  np.random.normal(0, sd, size=latent_dim).astype(np.float32)
     return np.tile(latent, (len(text), 1))
 
@@ -28,7 +31,7 @@ def get_interpolated_labels(words=['LOVE','HATE'], style=get_random_style(), ste
         for char in word:
             label = [0.0] * len(chars)
             label[chars.index(char)] = 1.0
-            label.extend(style)
+            #label.extend(style)
             char_labels.append(label)
         input_labels.append(char_labels)
     input_labels = np.asarray(input_labels)
@@ -47,7 +50,7 @@ def get_input(text="default", latent=get_random_latent(), style=[0.0, 0.0, 0.0, 
     for char in text:
         label = [0.0] * len(chars)
         label[chars.index(char)] = 1.0
-        label.extend(style)
+        #label.extend(style)
         input_labels.append(label)
     input_labels = np.asarray(input_labels, dtype=np.float32)
 
@@ -104,8 +107,11 @@ def get_interpolated_random_styles(num=2, steps=25):
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 
+
 steps = 50
-words= ['XXXX', 'DEEP', 'DEEP', 'TYPE', 'TYPE', 'INTE', 'RNET', 'EXPL', 'ORER', 'XXXX']
+
+'''
+words= ['Liquid', 'Liquid', 'L1qu1d', 'L1QU1D', 'LIQU1D', 'LIQUID', 'LIQUID', 'LIQUID', 'LIQUID', 'LIQUID']
 
 latents = get_interpolated_latents(num=len(words), steps=steps)
 labels = get_interpolated_labels(words=words ,steps=steps)
@@ -114,6 +120,7 @@ for i, [latent, label] in enumerate(zip(latents, labels)):
     output = model([latent, label])
     save_as_image(output, f'{i:03d}_{text}.png')
     print(f'Saved image {i} of {len(labels)}')
+'''
 
 '''
 latents = get_interpolated_latents(20, 50)
@@ -126,15 +133,15 @@ for i, [latent, style] in enumerate(zip(latents,styles)):
     print(f'Saved image {i} of {len(latents)}')
 '''
 
-'''
-latents = get_interpolated_latents(10, 25)
+
+latents = get_interpolated_latents(num=35, steps=15)
 
 for i, latent in enumerate(latents):
     input = get_input(text, latent=latent)
     output = model(input)
     save_as_image(output, f'{i:03d}_{text}.png')
     print(f'Saved image {i} of {len(latents)}')
-'''
+
 
 '''
 styles =   [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],

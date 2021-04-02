@@ -11,8 +11,13 @@ from shutil import copyfile
 from pcgan import PCGAN
 from dataset import DatasetGenerator
 
+
+modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-01-115036/'
+ckptdir = modeldir + 'models/pcgan_stage_4_stabilize'
+stage = 4 + 1
+
 ### LOAD CONFIG ###
-config_file = 'config.yaml'
+config_file = modeldir + 'config.yaml'
 
 with open(config_file) as f:
   config = yaml.load(f, Loader=yaml.FullLoader)
@@ -40,7 +45,7 @@ if not os.path.exists(f'{training_dir}images/models/'):
   os.makedirs(f'{training_dir}images/models/')
   os.makedirs(f'{training_dir}models/')
 
-copyfile(config_file, f'{training_dir}{config_file}')
+copyfile(config_file, f'{training_dir}config.yaml')
 
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.0, beta_2=0.99, epsilon=1e-8)
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.0, beta_2=0.99, epsilon=1e-8)
@@ -127,18 +132,34 @@ def train_stage(epochs, im_size, step, batch_size, name):
     pcgan.generator.save(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
     pcgan.save_weights(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
 
-plot_models('init')
-
 pcgan.compile(
     d_optimizer=discriminator_optimizer,
     g_optimizer=generator_optimizer,
 )
 
-# Start training the initial generator and discriminator
-train_stage(epochs=epochs[0], im_size=4, step=step, batch_size=batch_size[0], name='init')
+for n_depth in range(1, stage):
+  pcgan.n_depth = n_depth
+
+  pcgan.fade_in_generator()
+  pcgan.fade_in_discriminator_new_embedding()
+
+  pcgan.compile(
+      d_optimizer=discriminator_optimizer,
+      g_optimizer=generator_optimizer,
+  )
+
+  pcgan.stabilize_generator()
+  pcgan.stabilize_discriminator()
+
+  pcgan.compile(
+      d_optimizer=discriminator_optimizer,
+      g_optimizer=generator_optimizer,
+  )
+
+pcgan.load_weights(ckptdir)
 
 # Train faded-in / stabilized generators and discriminators
-for n_depth in range(1, len(batch_size)):
+for n_depth in range(stage, len(batch_size)):
   # Set current level(depth)
   pcgan.n_depth = n_depth
 

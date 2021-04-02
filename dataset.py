@@ -5,6 +5,7 @@ import os
 import numpy as np
 import itertools
 import yaml
+import random
 
 class DatasetGenerator:
     def __init__(self, im_size=4, num_chars=1, step=1, batch_size=16, font_dir='fonts/', num_fonts=0, get_style_labels=True):
@@ -31,13 +32,16 @@ class DatasetGenerator:
         if self.num_fonts != 0:
             self.fonts = self.fonts[:self.num_fonts]
         self.fonts = self.fonts[::self.step]
-
+    
+    def randomize_fonts(self):
+        random.shuffle(self.fonts)
 
     def get_num_fonts(self):
         return len(self.fonts)
 
     def set_chars(self):
-        chars = [c for c in ascii_uppercase + ascii_lowercase]
+        chars = [c for c in ascii_uppercase + ascii_lowercase] # 26 + 26
+        chars += '1234567890.,(!?)+-*/=' # + 21 = 73
         self.chars = chars[:self.num_chars]
 
     def set_dataset(self):
@@ -105,3 +109,9 @@ class DatasetGenerator:
                     im.save(output_dir + '{}_uppercase__{}__{}.png'.format(char, font_file.split('\\')[-1][:-4], self.im_size))
                 else:
                     im.save(output_dir + '{}_lowercase__{}__{}.png'.format(char, font_file.split('\\')[-1][:-4], self.im_size))
+
+'''
+if __name__ == '__main__':
+    dg = DatasetGenerator(64, 1, font_dir='C:/Users/Schnee/Datasets/Fonts02/')
+    dg.save_dataset_as_images('C:/Users/Schnee/Datasets/Fonts02IMG/')
+'''

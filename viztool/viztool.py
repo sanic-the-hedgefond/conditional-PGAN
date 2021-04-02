@@ -18,12 +18,13 @@ class Viztool(QWidget):
         super().__init__()
 
         #self.modeldir = 'training/2021-03-19-102857/models/pcgan_stage_5_stabilize/'
-        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2012-03-21-135259/pcgan_stage_6_fade_in/'
-        self.num_img = 52
-        self.num_chars = 52
-        self.latent_dim = 20
+        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-01-115036/models/pcgan_stage_4_stabilize/'
+        self.num_img = 73 #52
+        self.num_chars = 73 #52
+        self.latent_dim = 50 #20
+        self.random_sd = 1.0
 
-        self.label_names = ['Weight', 'Width', 'Contrast', 'Serifs', 'Italic', 'Roundness']
+        self.label_names = [] #['Weight', 'Width', 'Contrast', 'Serifs', 'Italic', 'Roundness']
 
         self.slider_steps = 50
         self.slider_per_row = 25
@@ -126,7 +127,7 @@ class Viztool(QWidget):
                 print("Wrong directory")
 
     def randomize_latent(self):
-        self.input_latent = np.random.normal(0, 0.85, size=(1, self.latent_dim))
+        self.input_latent = np.random.normal(0, self.random_sd, size=(1, self.latent_dim))
         self.update_output_flag = False
 
         for i in range(self.latent_dim):
@@ -150,7 +151,7 @@ class Viztool(QWidget):
 
         input_labels = tf.convert_to_tensor(input_labels, dtype=tf.float32)
 
-        img_per_batch = 13
+        img_per_batch = 12
         self.output = []
         for i in range(self.num_img // img_per_batch):
             index_start = i * img_per_batch
