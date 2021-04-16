@@ -11,10 +11,10 @@ from shutil import copyfile
 from pcgan import PCGAN
 from dataset import DatasetGenerator
 
-
-modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-01-115036/'
-ckptdir = modeldir + 'models/pcgan_stage_4_stabilize'
-stage = 4 + 1
+#modeldir= 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-13-113046/'
+modeldir = 'training/2021-04-13-113046/'
+ckptdir = modeldir + 'models/pcgan_stage_3_stabilize'
+stage = 4
 
 ### LOAD CONFIG ###
 config_file = modeldir + 'config.yaml'
@@ -123,14 +123,17 @@ def train_stage(epochs, im_size, step, batch_size, name):
         loss = pcgan.train_on_batch(x=batch_images, y=batch_labels, return_dict=True) # Train one batch
         print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1} // Batch {cur_batch+1}/{num_fonts//batch_size+1} // Class {cur_char+1} // {loss}') # Logging
       pcgan.increment_random_seed()
+      if save_model and cur_batch % 50 == 0:
+        pcgan.generator.save(f'{training_dir}models/pcgan_tmp')
+        pcgan.save_weights(f'{training_dir}models/pcgan_tmp')
     training_set.reset_generator()
     #generate_images(name=name, postfix=f'_epoch{cur_epoch+1}')
     #generate_images(name=name, postfix=f'_epoch{cur_epoch+1}', seed=707)
   #generate_images(shape=(num_chars, 4), name=name, postfix='_final')
   #generate_images(shape=(num_chars, 4), name=name, postfix='_final', seed=707)
-  if save_model:
-    pcgan.generator.save(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
-    pcgan.save_weights(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
+    if save_model:
+        pcgan.generator.save(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
+        pcgan.save_weights(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
 
 pcgan.compile(
     d_optimizer=discriminator_optimizer,
@@ -175,7 +178,7 @@ for n_depth in range(stage, len(batch_size)):
       g_optimizer=generator_optimizer,
   )
 
-  train_stage(epochs=epochs[n_depth], im_size=2**(n_depth+2), step=step, batch_size=batch_size[n_depth], name='fade_in')
+  train_stage(epochs=epochs[n_depth], im_size=2**(n_depth+2), step=step[n_depth], batch_size=batch_size[n_depth], name='fade_in')
 
   # Change to stabilized generator and discriminator
   pcgan.stabilize_generator()
@@ -189,4 +192,4 @@ for n_depth in range(stage, len(batch_size)):
       g_optimizer=generator_optimizer,
   )
 
-  train_stage(epochs=epochs[n_depth], im_size=2**(n_depth+2), step=step, batch_size=batch_size[n_depth], name='stabilize')
+  train_stage(epochs=epochs[n_depth], im_size=2**(n_depth+2), step=step[n_depth], batch_size=batch_size[n_depth], name='stabilize')

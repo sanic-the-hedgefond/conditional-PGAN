@@ -339,7 +339,8 @@ class PCGAN(Model):
         # 1. Get the node above the “toRGB” block 
         block_end = self.generator.layers[-5].output
         # 2. Double block_end       
-        block_end = layers.UpSampling2D((2,2))(block_end)
+        #block_end = layers.UpSampling2D((2,2))(block_end)
+        block_end = layers.Conv2DTranspose(filters=self.filters[self.n_depth], kernel_size=3, strides=(2, 2), padding='same')(block_end)
 
         # 3. Reuse the existing “toRGB” block defined as“x1”. 
         x1 = self.generator.layers[-4](block_end) # Conv2d

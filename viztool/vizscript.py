@@ -4,18 +4,18 @@ from PIL import Image
 from string import ascii_uppercase, ascii_lowercase
 import os
 
-text = 'ExploringTypefaceswithGenerativeAdversarialNetworks'
-save_dir = 'C:/Users/Schnee/Desktop/MASTER/Viz/20210402_07/'
+text = 'TYPE'
+save_dir = 'C:/Users/Schnee/Desktop/MASTER/Viz/20210403_04/'
 
 #modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2012-03-21-135259/pcgan_stage_6_fade_in/'
-modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-01-115036/models/pcgan_stage_4_stabilize/'
+modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-02-225335/models/pcgan_stage_5_stabilize/'
 model = tf.saved_model.load(modeldir)
 latent_dim = 50
 
 chars = [c for c in ascii_uppercase + ascii_lowercase] # 26 + 26
 chars += '1234567890.,(!?)+-*/=' # + 21 = 73
 
-def get_random_latent(sd=0.6):
+def get_random_latent(sd=0.95):
     latent =  np.random.normal(0, sd, size=latent_dim).astype(np.float32)
     return np.tile(latent, (len(text), 1))
 
@@ -134,7 +134,7 @@ for i, [latent, style] in enumerate(zip(latents,styles)):
 '''
 
 
-latents = get_interpolated_latents(num=35, steps=15)
+latents = get_interpolated_latents(num=30, steps=15)
 
 for i, latent in enumerate(latents):
     input = get_input(text, latent=latent)

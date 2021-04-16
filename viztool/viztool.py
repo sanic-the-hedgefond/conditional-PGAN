@@ -11,6 +11,7 @@ import os
 import sys
 from functools import partial
 from datetime import datetime
+import yaml
 
 class Viztool(QWidget):
 
@@ -18,13 +19,24 @@ class Viztool(QWidget):
         super().__init__()
 
         #self.modeldir = 'training/2021-03-19-102857/models/pcgan_stage_5_stabilize/'
-        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-01-115036/models/pcgan_stage_4_stabilize/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-01-115036/models/pcgan_stage_4_stabilize/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-03-201328/models/pcgan_stage_5_stabilize_1/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-06-123539/models/pcgan_stage_4_stabilize_1/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-06-175938/models/pcgan_stage_4_stabilize_2/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-08-141135/models/pcgan_stage_4_stabilize_8/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-08-141135/models/pcgan_stage_5_stabilize_3/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-10-192347/models/pcgan_stage_6_fade_in_2/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-13-113046/models/pcgan_stage_4_fade_in/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-13-113046/models/pcgan_tmp/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-14-073102/models/pcgan_stage_5_fade_in/'
+        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-14-073102/models/pcgan_tmp/'
+        
         self.num_img = 73 #52
         self.num_chars = 73 #52
         self.latent_dim = 50 #20
-        self.random_sd = 1.0
+        self.random_sd = 0.0
 
-        self.label_names = [] #['Weight', 'Width', 'Contrast', 'Serifs', 'Italic', 'Roundness']
+        self.label_names = [] #['Weight', 'Width', 'Contrast', 'Serifs', 'Italic'] #, 'Roundness']
 
         self.slider_steps = 50
         self.slider_per_row = 25
@@ -53,10 +65,24 @@ class Viztool(QWidget):
         self.layout = QVBoxLayout()
 
         self.layout_output = QGridLayout()
+        self.layout_random_slider = QHBoxLayout()
         self.layout_latent_slider = QGridLayout()
         self.layout_style_slider = QGridLayout()
 
+        self.random_slider = QSlider(Qt.Horizontal)
+        self.random_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.random_slider.setMinimum(0)
+        self.random_slider.setMaximum(20)
+        self.random_slider.valueChanged.connect(self.random_slider_changed)
+
+        self.random_slider_caption = QLabel()
+        self.random_slider_caption.setText('Latent Vector Standard Deviation: 0.0')
+
+        self.layout_random_slider.addWidget(self.random_slider_caption)
+        self.layout_random_slider.addWidget(self.random_slider)
+
         self.layout.addLayout(self.layout_output)
+        self.layout.addLayout(self.layout_random_slider)
         self.layout.addLayout(self.layout_latent_slider)
         self.layout.addLayout(self.layout_style_slider)
 
@@ -115,6 +141,8 @@ class Viztool(QWidget):
             os.makedirs(savedir)
         filename = f'{datetime.now().strftime("%Y-%m-%d-%H%M%S")}.png'
         self.output_img.save(f'{savedir}{filename}')
+        with open(f'{savedir}{filename[:-4]}.yaml', 'w') as file:
+            yaml.dump(self.input_latent.tolist(), file)
 
     def select_model(self):
         modeldir = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
@@ -141,6 +169,10 @@ class Viztool(QWidget):
         if self.update_output_flag:
             self.update_output(self.input_latent, self.input_labels)
 
+    def random_slider_changed(self):
+        self.random_sd = self.random_slider.value() / 10
+        self.random_slider_caption.setText(f'Latent Vector Standard Deviation: {self.random_slider.value() / 10}')
+
     def style_slider_changed(self, i):
         self.input_labels[:,self.num_chars + i] = self.style_slider[i].value() / self.slider_steps
         self.update_output(self.input_latent, self.input_labels)
@@ -159,6 +191,7 @@ class Viztool(QWidget):
             self.output.extend(self.model([input_latent[index_start:index_end], input_labels[index_start:index_end]]))
 
         self.output = (np.asarray(self.output) * 0.5) + 0.5
+        self.output = 1 - self.output
         self.img_size = self.output.shape[1]
 
         imgs = []
@@ -169,9 +202,9 @@ class Viztool(QWidget):
         for i in range(len(imgs)):
             self.output_img.paste(imgs[i], (self.img_size*(i%(self.num_img//self.num_rows_chars)), (i // (self.num_img//self.num_rows_chars)) * self.img_size))
 
-        img_height = int(self.output_img.size[1] * img_width / self.output_img.size[0])
+        #img_height = int(self.output_img.size[1] * img_width / self.output_img.size[0])
 
-        self.output_img = self.output_img.resize((img_width, img_height), resample=Image.NEAREST)
+        #self.output_img = self.output_img.resize((img_width, img_height), resample=Image.NEAREST)
 
         q_pix = QPixmap.fromImage(ImageQt.ImageQt(self.output_img))
         self.output_label.setPixmap(q_pix)

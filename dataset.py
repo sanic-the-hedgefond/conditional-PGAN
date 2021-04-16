@@ -78,7 +78,7 @@ class DatasetGenerator:
 
                 #create vector for type characteristics
                 if self.get_style_labels:
-                    label = np.append(label, style_labels[os.path.basename(font_file)])
+                    label = np.append(label, style_labels[os.path.basename(font_file)][:-1])
 
                 yield (im, label)
 
@@ -110,8 +110,7 @@ class DatasetGenerator:
                 else:
                     im.save(output_dir + '{}_lowercase__{}__{}.png'.format(char, font_file.split('\\')[-1][:-4], self.im_size))
 
-'''
+
 if __name__ == '__main__':
-    dg = DatasetGenerator(64, 1, font_dir='C:/Users/Schnee/Datasets/Fonts02/')
-    dg.save_dataset_as_images('C:/Users/Schnee/Datasets/Fonts02IMG/')
-'''
+    dg = DatasetGenerator(64, 1, font_dir='C:/Users/Schnee/Datasets/FreeFonts/')
+    dg.save_dataset_as_images('C:/Users/Schnee/Datasets/FreeFontsIMG/')
