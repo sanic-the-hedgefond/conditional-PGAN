@@ -236,7 +236,7 @@ class PCGAN(Model):
         x2 = WeightScalingConv(concat_input, filters=self.filters[self.n_depth], kernel_size=(5,5), gain=np.sqrt(2), activate='LeakyReLU')
 
         #x2 = WeightScalingConv(x2, filters=self.filters[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU')
-        x2 = WeightScalingConv(x2, filters=self.filters[self.n_depth-1], kernel_size=(5,5), gain=np.sqrt(2), activate='LeakyReLU', strides=(2, 2))
+        x2 = WeightScalingConv(x2, filters=self.filters[self.n_depth-1], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU', strides=(2, 2))
 
         #x2 = layers.AveragePooling2D()(x2)
 
@@ -278,7 +278,7 @@ class PCGAN(Model):
 
         # Add "toRGB", the original paper uses linear as actiavation. 
         # Gain should be 1, cos it's a last layer 
-        x = WeightScalingTransposedConv(x, filters=1, kernel_size=(5,5), gain=1., activate='tanh', use_pixelnorm=False)
+        x = WeightScalingTransposedConv(x, filters=1, kernel_size=(3,3), gain=1., activate='tanh', use_pixelnorm=False)
 
         g_model = Model([noise, label], x, name='generator')
         g_model.summary()
@@ -294,7 +294,7 @@ class PCGAN(Model):
         # 2. Double block_end       
         #block_end = layers.UpSampling2D((2,2))(block_end)
         #block_end = layers.Conv2DTranspose(filters=self.filters[self.n_depth], kernel_size=3, strides=(2, 2), padding='same')(block_end)
-        new_block_end = WeightScalingTransposedConv(block_end, filters=self.filters[self.n_depth], kernel_size=(5,5), gain=np.sqrt(2), activate='LeakyReLU', use_pixelnorm=False, strides=(2, 2))
+        new_block_end = WeightScalingTransposedConv(block_end, filters=self.filters[self.n_depth], kernel_size=(5,5), gain=np.sqrt(2), activate='LeakyReLU', use_pixelnorm=True, strides=(2, 2))
 
         # 3. Reuse the existing “toRGB” block defined as“x1”. 
         x1 = self.generator.layers[-4](block_end) # Conv2d
@@ -307,7 +307,7 @@ class PCGAN(Model):
         #x2 = WeightScalingConv(block_end, filters=self.filters[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU', use_pixelnorm=True)
         #x2 = WeightScalingConv(x2, filters=self.filters[self.n_depth], kernel_size=(3,3), gain=np.sqrt(2), activate='LeakyReLU', use_pixelnorm=True)
         
-        x2 = WeightScalingTransposedConv(new_block_end, filters=1, kernel_size=(5,5), gain=1., activate='tanh', use_pixelnorm=False)
+        x2 = WeightScalingTransposedConv(new_block_end, filters=1, kernel_size=(3,3), gain=1., activate='tanh', use_pixelnorm=False)
 
         # Define stabilized(c. state) generator
         self.generator_stabilize = Model(self.generator.input, x2, name='generator')

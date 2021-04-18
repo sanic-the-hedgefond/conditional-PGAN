@@ -11,7 +11,7 @@ from shutil import copyfile
 from pcgan import PCGAN
 from dataset import DatasetGenerator
 
-continue_training = True
+continue_training = False
 
 ### ONLY IF CONTINUE TRAINING ###
 #modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-18-070339/'
@@ -78,7 +78,7 @@ def train_stage(epochs, im_size, step, batch_size, name):
       for cur_char in range(num_chars):
         batch_images, batch_labels = map(np.asarray, zip(*batch[cur_char::num_chars])) # Extract images and labels for current char from batch
         loss = pcgan.train_on_batch(x=batch_images, y=batch_labels, return_dict=True) # Train one batch
-        print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1} // Batch {cur_batch+1}/{num_fonts//batch_size+1} // Class {cur_char+1} // {loss}') # Logging
+        print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1}/{epochs} // Batch {cur_batch+1}/{num_fonts//batch_size+1} // Class {cur_char+1} // {loss}') # Logging
       pcgan.increment_random_seed()
       if save_model and cur_batch % 50 == 0:
         pcgan.generator.save(f'{training_dir}models/pcgan_tmp')
