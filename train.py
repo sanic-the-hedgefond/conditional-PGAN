@@ -11,8 +11,20 @@ from shutil import copyfile
 from pcgan import PCGAN
 from dataset import DatasetGenerator
 
+continue_training = True
+
+### ONLY IF CONTINUE TRAINING ###
+#modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-18-070339/'
+modeldir = 'training/2021-04-18-070339/'
+ckptdir = modeldir + 'models/pcgan_stage_4_stabilize'
+stage = 4
+train_same_stage = True
+
 ### LOAD CONFIG ###
-config_file = 'config.yaml'
+if continue_training:
+  config_file = modeldir + 'config.yaml'
+else:
+  config_file = 'config.yaml'
 
 with open(config_file) as f:
   config = yaml.load(f, Loader=yaml.FullLoader)
@@ -40,7 +52,7 @@ if not os.path.exists(f'{training_dir}images/models/'):
   os.makedirs(f'{training_dir}images/models/')
   os.makedirs(f'{training_dir}models/')
 
-copyfile(config_file, f'{training_dir}{config_file}')
+copyfile(config_file, f'{training_dir}config.yaml')
 
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.0004, beta_1=0.4, beta_2=0.99, epsilon=1e-8)
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.0004, beta_1=0.4, beta_2=0.99, epsilon=1e-8)
@@ -51,56 +63,6 @@ pcgan = PCGAN(
     filters = filters,
     d_steps = discriminator_steps,
 )
-
-def generate_images(shape = (num_chars, 2), name='init', postfix='', seed=None):
-  num_img = shape[0] * shape[1]
-
-  random_latent_vectors = tf.random.normal(shape=[int(num_img/num_chars), latent_dim])
-  if seed:
-    random_latent_vectors = tf.random.normal(shape=[int(num_img/num_chars), latent_dim], seed=seed)
-    postfix += f'_fixed_seed_{seed}'
-
-  random_latent_vectors = tf.repeat(random_latent_vectors, num_chars, axis=0)
-
-  labels = []
-  for i in range(num_img):
-    labels.append([0] * num_chars) 
-    labels[i][i % num_chars] = 1
-    if num_style_labels > 0:
-      labels[i].extend(np.random.normal(loc=0.0, scale=0.2, size=num_style_labels).tolist())
-
-  samples = []
-  for i in range(shape[1]):
-    index_start = i*num_chars
-    index_end = min((i+1)*num_chars, num_img)
-    samples.extend(pcgan.generator([random_latent_vectors[index_start:index_end], np.asarray(labels[index_start:index_end])]))
-  samples = (np.asarray(samples) * 0.5) + 0.5
-
-  img_size = samples.shape[1]
-
-  '''
-  imgs = []
-  for i in range(num_img):
-      imgs.append(tf.keras.preprocessing.image.array_to_img(samples[i]))
-  '''
-
-  num_rows = shape[1]
-
-  imgs_alphabet  = []
-  for i in range(num_rows):
-    imgs_alphabet.append(cv2.hconcat(samples[i*num_chars:(i+1)*num_chars]))
-  img_alphabets = cv2.vconcat(imgs_alphabet)
-  title = f'{training_dir}images/plot_{img_size}x{img_size}_{name}{postfix}.png'
-  plt.imsave(title, img_alphabets, cmap=plt.cm.gray)
-  print(f'\n saved {title}')
-
-  '''
-  output_img = Image.new('L', (num_img//num_rows*img_size, img_size*num_rows))
-  for i in range(len(imgs)):
-      output_img.paste(imgs[i], (img_size*(i%(num_img//num_rows)), (i // (num_img//num_rows)) * img_size))
-
-  output_img.save(title)
-  '''
 
 def plot_models(name):
   tf.keras.utils.plot_model(pcgan.generator, to_file=f'{training_dir}images/models/generator_{pcgan.n_depth}_{name}.png', show_shapes=True)
@@ -122,10 +84,6 @@ def train_stage(epochs, im_size, step, batch_size, name):
         pcgan.generator.save(f'{training_dir}models/pcgan_tmp')
         pcgan.save_weights(f'{training_dir}models/pcgan_tmp')
     training_set.reset_generator()
-    #generate_images(name=name, postfix=f'_epoch{cur_epoch+1}')
-    #generate_images(name=name, postfix=f'_epoch{cur_epoch+1}', seed=707)
-  #generate_images(shape=(num_chars, 4), name=name, postfix='_final')
-  #generate_images(shape=(num_chars, 4), name=name, postfix='_final', seed=707)
     if save_model:
         pcgan.generator.save(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
         pcgan.save_weights(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
@@ -137,11 +95,38 @@ pcgan.compile(
     g_optimizer=generator_optimizer,
 )
 
-# Start training the initial generator and discriminator
-train_stage(epochs=epochs[0], im_size=4, step=step[0], batch_size=batch_size[0], name='init')
+if continue_training:
+  for n_depth in range(1, stage+1):
+    pcgan.n_depth = n_depth
+
+    pcgan.fade_in_generator()
+    pcgan.fade_in_discriminator()
+
+    pcgan.compile(
+        d_optimizer=discriminator_optimizer,
+        g_optimizer=generator_optimizer,
+    )
+
+    pcgan.stabilize_generator()
+    pcgan.stabilize_discriminator()
+
+    pcgan.compile(
+        d_optimizer=discriminator_optimizer,
+        g_optimizer=generator_optimizer,
+    )
+
+  pcgan.load_weights(ckptdir)
+
+  if train_same_stage:
+    train_stage(epochs=epochs[n_depth], im_size=2**(n_depth+2), step=step[n_depth], batch_size=batch_size[n_depth], name='stabilize')
+
+else:
+  # Start training the initial generator and discriminator
+  train_stage(epochs=epochs[0], im_size=4, step=step[0], batch_size=batch_size[0], name='init')
+  stage = 1
 
 # Train faded-in / stabilized generators and discriminators
-for n_depth in range(1, len(batch_size)):
+for n_depth in range(stage+1, len(batch_size)):
   # Set current level(depth)
   pcgan.n_depth = n_depth
 

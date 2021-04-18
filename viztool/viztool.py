@@ -33,7 +33,7 @@ class Viztool(QWidget):
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-14-073102/models/pcgan_tmp/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-17-193005/models/pcgan_stage_4_stabilize/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-17-232232/models/pcgan_tmp/'
-        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-18-070339/models/pcgan_stage_4_fade_in/'
+        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-18-070339/models/pcgan_stage_5_fade_in/'
         
         
         self.num_img = 73 #26 #52 #73
