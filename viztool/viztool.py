@@ -19,6 +19,7 @@ class Viztool(QWidget):
         super().__init__()
 
         #self.modeldir = 'training/2021-03-19-102857/models/pcgan_stage_5_stabilize/'
+        #self.modeldir = 'training/2021-04-17-122742/models/pcgan_stage_1_stabilize/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-01-115036/models/pcgan_stage_4_stabilize/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-03-201328/models/pcgan_stage_5_stabilize_1/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-06-123539/models/pcgan_stage_4_stabilize_1/'
@@ -29,19 +30,24 @@ class Viztool(QWidget):
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-13-113046/models/pcgan_stage_4_fade_in/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-13-113046/models/pcgan_tmp/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-14-073102/models/pcgan_stage_5_fade_in/'
-        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-14-073102/models/pcgan_tmp/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-14-073102/models/pcgan_tmp/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-17-193005/models/pcgan_stage_4_stabilize/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-17-232232/models/pcgan_tmp/'
+        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-18-070339/models/pcgan_stage_4_fade_in/'
         
-        self.num_img = 73 #52
-        self.num_chars = 73 #52
+        
+        self.num_img = 73 #26 #52 #73
+        self.num_chars = 73 #26 #52 #73
         self.latent_dim = 50 #20
         self.random_sd = 0.0
+        self.img_per_batch = 12
+        self.num_rows_chars = 4 #2
 
-        self.label_names = [] #['Weight', 'Width', 'Contrast', 'Serifs', 'Italic'] #, 'Roundness']
+        self.label_names = ['Weight', 'Width', 'Contrast', 'Serifs', 'Italic'] #, 'Roundness']
 
         self.slider_steps = 50
         self.slider_per_row = 25
         
-        self.num_rows_chars = 4
 
         self.model = tf.saved_model.load(self.modeldir)
 
@@ -183,11 +189,11 @@ class Viztool(QWidget):
 
         input_labels = tf.convert_to_tensor(input_labels, dtype=tf.float32)
 
-        img_per_batch = 12
+        #img_per_batch = self.img_per_batch
         self.output = []
-        for i in range(self.num_img // img_per_batch):
-            index_start = i * img_per_batch
-            index_end = min((i+1) * img_per_batch, self.num_img)
+        for i in range(self.num_img // self.img_per_batch):
+            index_start = i * self.img_per_batch
+            index_end = min((i+1) * self.img_per_batch, self.num_img)
             self.output.extend(self.model([input_latent[index_start:index_end], input_labels[index_start:index_end]]))
 
         self.output = (np.asarray(self.output) * 0.5) + 0.5
@@ -202,9 +208,9 @@ class Viztool(QWidget):
         for i in range(len(imgs)):
             self.output_img.paste(imgs[i], (self.img_size*(i%(self.num_img//self.num_rows_chars)), (i // (self.num_img//self.num_rows_chars)) * self.img_size))
 
-        #img_height = int(self.output_img.size[1] * img_width / self.output_img.size[0])
+        img_height = int(self.output_img.size[1] * img_width / self.output_img.size[0])
 
-        #self.output_img = self.output_img.resize((img_width, img_height), resample=Image.NEAREST)
+        self.output_img = self.output_img.resize((img_width, img_height), resample=Image.NEAREST)
 
         q_pix = QPixmap.fromImage(ImageQt.ImageQt(self.output_img))
         self.output_label.setPixmap(q_pix)

@@ -42,8 +42,8 @@ if not os.path.exists(f'{training_dir}images/models/'):
 
 copyfile(config_file, f'{training_dir}{config_file}')
 
-generator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.0, beta_2=0.99, epsilon=1e-8)
-discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.0, beta_2=0.99, epsilon=1e-8)
+generator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.0004, beta_1=0.4, beta_2=0.99, epsilon=1e-8)
+discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.0004, beta_1=0.4, beta_2=0.99, epsilon=1e-8)
 
 pcgan = PCGAN(
     latent_dim = latent_dim,
@@ -112,7 +112,7 @@ def train_stage(epochs, im_size, step, batch_size, name):
   for cur_epoch in range(epochs): # Iterate epochs
     training_set.randomize_fonts()
     for cur_batch, batch in enumerate(training_set.batch): # Iterate batches
-      pcgan.set_alpha((cur_batch)/(num_fonts//batch_size+1)/epochs + (cur_epoch)/epochs) # Set alpha for fade in layers (fade from 0 to 1 during whole stage)
+      pcgan.set_alpha((cur_batch+1)/(num_fonts//batch_size+1)/epochs + (cur_epoch)/epochs) # Set alpha for fade in layers (fade from 0 to 1 during whole stage)
       for cur_char in range(num_chars):
         batch_images, batch_labels = map(np.asarray, zip(*batch[cur_char::num_chars])) # Extract images and labels for current char from batch
         loss = pcgan.train_on_batch(x=batch_images, y=batch_labels, return_dict=True) # Train one batch
@@ -147,7 +147,7 @@ for n_depth in range(1, len(batch_size)):
 
   # Put fade in generator and discriminator
   pcgan.fade_in_generator()
-  pcgan.fade_in_discriminator_new_embedding()
+  pcgan.fade_in_discriminator()
 
   # Draw fade in generator and discriminator
   plot_models('fade_in')

@@ -144,7 +144,7 @@ for n_depth in range(1, stage):
   pcgan.n_depth = n_depth
 
   pcgan.fade_in_generator()
-  pcgan.fade_in_discriminator_new_embedding()
+  pcgan.fade_in_discriminator()
 
   pcgan.compile(
       d_optimizer=discriminator_optimizer,
@@ -168,7 +168,7 @@ for n_depth in range(stage, len(batch_size)):
 
   # Put fade in generator and discriminator
   pcgan.fade_in_generator()
-  pcgan.fade_in_discriminator_new_embedding()
+  pcgan.fade_in_discriminator()
 
   # Draw fade in generator and discriminator
   plot_models('fade_in')

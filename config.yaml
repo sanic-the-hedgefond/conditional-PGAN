@@ -1,12 +1,12 @@
 latent_dim: 50
-num_chars: 12
+num_chars: 52
 num_style_labels: 0
 
-first_n_fonts: 300 # Prune dataset
+first_n_fonts: 0 # Prune dataset
 
 ########     4      8     16    32    64    128   256   512   1024
-step:       [2,     2,    2,    2,    2,    2,    2,    2,    2] # Reduce size of dataset by this factor
-filters:    [256,   256,  256,  256,  256,  256,  256,  128,  64] # Filters per added layer (in discriminator und generator)
+step:       [2,     2,    2,    2,    2,    1,    1,    1,    1] # Reduce size of dataset by this factor
+filters:    [512,   256,  256,  256,  256,  128,  128,  128,  64] # Filters per added layer (in discriminator und generator)
 batch_size: [64,    32,   32,   16,   16,   16,   8,    4,    4] # Batches per stage
 epochs:     [1,     1,    1,    1,    1,    1,    1,    1,    1] # Epochs per stage
 discriminator_steps: 4
