@@ -8,7 +8,7 @@ import yaml
 import random
 
 class DatasetGenerator:
-    def __init__(self, im_size=4, num_chars=1, step=1, batch_size=16, font_dir='fonts/', num_fonts=0, get_style_labels=True):
+    def __init__(self, im_size=4, num_chars=1, step=1, batch_size=16, font_dir='fonts/', num_fonts=0, get_style_labels=True, one_hot=True):
         self.im_size = im_size
         self.num_chars = num_chars
         self.step = step
@@ -16,6 +16,7 @@ class DatasetGenerator:
         self.font_dir = font_dir
         self.num_fonts = num_fonts
         self.get_style_labels = get_style_labels
+        self.one_hot = one_hot
 
         self.set_fonts()
         self.set_chars()
@@ -63,6 +64,8 @@ class DatasetGenerator:
         for font_file in self.fonts:
             font = ImageFont.truetype(font_file, int(self.im_size*(3.0/4.0)))
 
+            random.shuffle(self.chars)
+            
             for i, char in enumerate(self.chars):
                 im = Image.new('L', (self.im_size, self.im_size), 0)
                 draw = ImageDraw.Draw(im)
@@ -75,6 +78,9 @@ class DatasetGenerator:
                 #create one-hot annotation vector for character classes
                 label = np.zeros((len(self.chars)))
                 label[i] = 1
+
+                if not self.one_hot:
+                    label = i
 
                 #create vector for type characteristics
                 if self.get_style_labels:

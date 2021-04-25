@@ -8,17 +8,17 @@ from datetime import datetime
 import yaml
 from shutil import copyfile
 
-from pcgan import PCGAN
+from pcgan_experimental_02 import PCGAN
 from dataset import DatasetGenerator
 
 continue_training = False
 
 ### ONLY IF CONTINUE TRAINING ###
-#modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-18-070339/'
-modeldir = 'training/2021-04-18-070339/'
-ckptdir = modeldir + 'models/pcgan_stage_4_stabilize'
-stage = 4
-train_same_stage = True
+#modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-14-073102/'
+modeldir = 'training/2021-04-14-073102/'
+ckptdir = modeldir + 'models/pcgan_tmp'
+stage = 5
+train_same_stage = False
 
 ### LOAD CONFIG ###
 if continue_training:
@@ -69,23 +69,23 @@ def plot_models(name):
   tf.keras.utils.plot_model(pcgan.discriminator, to_file=f'{training_dir}images/models/discriminator_{pcgan.n_depth}_{name}.png', show_shapes=True)
 
 def train_stage(epochs, im_size, step, batch_size, name):
-  training_set = DatasetGenerator(im_size=im_size, num_chars=num_chars, step=step, batch_size=batch_size, font_dir=font_dir, num_fonts=first_n_fonts, get_style_labels=(num_style_labels!=0))
+  training_set = DatasetGenerator(im_size=im_size, num_chars=num_chars, step=step, batch_size=batch_size, font_dir=font_dir, num_fonts=first_n_fonts, get_style_labels=(num_style_labels!=0), one_hot=False)
   num_fonts = training_set.get_num_fonts()
   for cur_epoch in range(epochs): # Iterate epochs
     training_set.randomize_fonts()
     for cur_batch, batch in enumerate(training_set.batch): # Iterate batches
-      pcgan.set_alpha((cur_batch+1)/(num_fonts//batch_size+1)/epochs + (cur_epoch)/epochs) # Set alpha for fade in layers (fade from 0 to 1 during whole stage)
+      #pcgan.set_alpha((cur_batch+1)/(num_fonts//batch_size+1)/epochs + (cur_epoch)/epochs) # Set alpha for fade in layers (fade from 0 to 1 during whole stage)
       for cur_char in range(num_chars):
         batch_images, batch_labels = map(np.asarray, zip(*batch[cur_char::num_chars])) # Extract images and labels for current char from batch
         loss = pcgan.train_on_batch(x=batch_images, y=batch_labels, return_dict=True) # Train one batch
         print(f'{im_size}x{im_size} {name} // Epoch {cur_epoch+1}/{epochs} // Batch {cur_batch+1}/{num_fonts//batch_size+1} // Class {cur_char+1} // {loss}') # Logging
       pcgan.increment_random_seed()
-      if save_model and cur_batch % 50 == 0:
-        pcgan.generator.save(f'{training_dir}models/pcgan_tmp')
-        pcgan.save_weights(f'{training_dir}models/pcgan_tmp')
+      #if save_model and cur_batch % 50 == 0:
+      #  pcgan.generator.save(f'{training_dir}models/pcgan_tmp')
+      #  pcgan.save_weights(f'{training_dir}models/pcgan_tmp')
     training_set.reset_generator()
     if save_model:
-        pcgan.generator.save(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
+        pcgan.generator.save(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}_{cur_epoch}')
         pcgan.save_weights(f'{training_dir}models/pcgan_stage_{pcgan.n_depth}_{name}')
 
 plot_models('init')
@@ -122,8 +122,8 @@ if continue_training:
 
 else:
   # Start training the initial generator and discriminator
-  train_stage(epochs=epochs[0], im_size=4, step=step[0], batch_size=batch_size[0], name='init')
-  stage = 1
+  train_stage(epochs=epochs[0], im_size=64, step=step[0], batch_size=batch_size[0], name='init')
+  stage = 0
 
 # Train faded-in / stabilized generators and discriminators
 for n_depth in range(stage+1, len(batch_size)):

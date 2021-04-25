@@ -19,7 +19,8 @@ class Viztool(QWidget):
         super().__init__()
 
         #self.modeldir = 'training/2021-03-19-102857/models/pcgan_stage_5_stabilize/'
-        #self.modeldir = 'training/2021-04-17-122742/models/pcgan_stage_1_stabilize/'
+        #self.modeldir = 'training/2021-04-19-002214/models/pcgan_stage_3_stabilize/'
+        #self.modeldir = 'training/2021-04-19-121339/models/pcgan_stage_3_fade_in/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-01-115036/models/pcgan_stage_4_stabilize/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-03-201328/models/pcgan_stage_5_stabilize_1/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-06-123539/models/pcgan_stage_4_stabilize_1/'
@@ -30,20 +31,25 @@ class Viztool(QWidget):
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-13-113046/models/pcgan_stage_4_fade_in/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-13-113046/models/pcgan_tmp/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-14-073102/models/pcgan_stage_5_fade_in/'
+
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-14-073102/models/pcgan_tmp/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-19-150642/models/pcgan_stage_6_stabilize/'
+
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-17-193005/models/pcgan_stage_4_stabilize/'
         #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-17-232232/models/pcgan_tmp/'
-        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-18-070339/models/pcgan_stage_5_stabilize/'
-        
-        
-        self.num_img = 73 #26 #52 #73
-        self.num_chars = 73 #26 #52 #73
-        self.latent_dim = 50 #20
-        self.random_sd = 0.0
-        self.img_per_batch = 12
-        self.num_rows_chars = 4 #2
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-18-070339/models/pcgan_stage_5_stabilize_epoch2/'
+        #self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-19-110431/models/pcgan_tmp/'
 
-        self.label_names = ['Weight', 'Width', 'Contrast', 'Serifs', 'Italic'] #, 'Roundness']
+        self.modeldir = 'C:/Users/Schnee/Desktop/MASTER/Training_Processes/pcgan/2021-04-24-213718/models/pcgan_stage_0_init_2/'
+        
+        self.latent_dim = 50 #20
+        self.num_img = 26 #26 #52 #73
+        self.num_chars = 73 #26 #52 #73
+        self.random_sd = 0.0
+        self.img_per_batch = 13
+        self.num_rows_chars = 2 #2
+
+        self.label_names = [] #['Weight', 'Width', 'Contrast', 'Serifs', 'Italic'] #, 'Roundness']
 
         self.slider_steps = 50
         self.slider_per_row = 25
@@ -183,7 +189,7 @@ class Viztool(QWidget):
         self.input_labels[:,self.num_chars + i] = self.style_slider[i].value() / self.slider_steps
         self.update_output(self.input_latent, self.input_labels)
 
-    def update_output(self, input_latent, input_labels, img_width=1600):
+    def update_output(self, input_latent, input_labels, img_width=2000):
         input_latent = tf.convert_to_tensor(input_latent, dtype=tf.float32)
         input_latent = tf.repeat(input_latent, self.num_img, axis=0)
 
